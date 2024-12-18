@@ -107,7 +107,9 @@ def run(poseweights="yolov7-w6-pose.pt",source="test.mp4",device='cpu',view_img=
                             #             orig_shape=im0.shape[:2])
                             plot_skeleton_kpts(im0, kpts, steps=3, orig_shape=im0.shape[:2])
                             # plot_skeleton_kpts(im2, kpts, steps=3, orig_shape=im0.shape[:2])
-                            plot_skeleton_kpts_bm(im2, kpts, steps=3, orig_shape=im0.shape[:2])
+                            plot_skeleton_kpts_bm(im0, kpts, steps=3, orig_shape=im2.shape[:2],delta=True)
+
+                            plot_skeleton_kpts_bm(im2, kpts, steps=3, orig_shape=im2.shape[:2],delta=True)
 
 
                             # detect_wheel(im0,im2,orig_image)
