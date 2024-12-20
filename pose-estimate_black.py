@@ -11,8 +11,8 @@ from models.experimental import attempt_load
 from utils.general import non_max_suppression_kpt,strip_optimizer,xyxy2xywh
 from utils.plots import output_to_keypoint, plot_skeleton_kpts,colors,plot_one_box_kpt
 from wheel_detector import detect_wheel
-from plots_bm import plot_skeleton_kpts_bm
-
+from plots_bm_katy import plot_skeleton_kpts_bm
+          
 @torch.no_grad()
 def run(poseweights="yolov7-w6-pose.pt",source="test.mp4",device='cpu',view_img=False,
         save_conf=False,line_thickness = 3,hide_labels=True, hide_conf=True):

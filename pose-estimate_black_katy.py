@@ -24,6 +24,7 @@ def run(poseweights="yolov7-w6-pose.pt",source="test.mp4",device='cpu',view_img=
 
     stored_angs=[]
     trace=[]
+    mass_center_trace=[]
     
     device = select_device(opt.device) #select device
     half = device.type != 'cpu'
@@ -77,8 +78,12 @@ def run(poseweights="yolov7-w6-pose.pt",source="test.mp4",device='cpu',view_img=
                 with torch.no_grad():  #get predictions
                     output_data, _ = model(image)
 
+                for i,j in enumerate(output_data):
+                    # print(str(j.conf))
+                    pass
+
                 output_data = non_max_suppression_kpt(output_data,   #Apply non max suppression
-                                            0.60,   # Conf. Threshold.
+                                            0.70,   # Conf. Threshold.
                                             0.65, # IoU Threshold.
                                             nc=model.yaml['nc'], # Number of classes.
                                             nkpt=model.yaml['nkpt'], # Number of keypoints.
@@ -117,10 +122,20 @@ def run(poseweights="yolov7-w6-pose.pt",source="test.mp4",device='cpu',view_img=
                             stored_angs.append(calc_angs(kpts,steps=3))
                             trace.append((int(kpts[(17-1)*3]), int(kpts[(17-1)*3+1])))
 
-                            polt_angs(im0, 3, stored_angs, orig_shape=None,color=(0, 0, 0))
-                            polt_angs(im2, 3, stored_angs, orig_shape=None)
-                            plot_trace(im0, 3, trace)
-                            plot_trace(im2, 3, trace)
+                            # uwaga!!! dla środka ciężkości współrzędna x - przyjęta dla jak  x dla kostki
+                            # musi tak być żeby można było porównywać wykresy w konkretnych klatkach
+
+                            mass_center_trace.append((int(kpts[(17-1)*3]), int(kpts[(13-1)*3+1])))
+                            
+                try:
+                    polt_angs(im0, 3, stored_angs, orig_shape=None,color=(0, 0, 0))
+                    polt_angs(im2, 3, stored_angs, orig_shape=None)
+                    plot_trace(im0, 3, trace)
+                    plot_trace(im2, 3, trace)
+                    plot_trace(im0, 3 ,mass_center_trace, color=(255, 153, 153))
+                    plot_trace(im2, 3 ,mass_center_trace, color=(255, 153, 153))
+                except:
+                    pass
 
                             
 
