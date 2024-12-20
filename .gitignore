@@ -8,3 +8,17 @@ __pycache__/plots_bm.cpython-312.pyc
 __pycache__/wheel_detector.cpython-312.pyc
 FPS_and_Time_Comparision_pose_estimate.png
 test.mp4_keypoint_black.mp4
+models/__pycache__/__init__.cpython-312.pyc
+models/__pycache__/common.cpython-312.pyc
+models/__pycache__/experimental.cpython-312.pyc
+models/__pycache__/yolo.cpython-312.pyc
+utils/__pycache__/__init__.cpython-312.pyc
+utils/__pycache__/autoanchor.cpython-312.pyc
+utils/__pycache__/datasets.cpython-312.pyc
+utils/__pycache__/general.cpython-312.pyc
+utils/__pycache__/google_utils.cpython-312.pyc
+utils/__pycache__/loss.cpython-312.pyc
+utils/__pycache__/metrics.cpython-312.pyc
+utils/__pycache__/plots.cpython-312.pyc
+utils/__pycache__/torch_utils.cpython-312.pyc
+__pycache__/plots_bm_katy.cpython-312.pyc
