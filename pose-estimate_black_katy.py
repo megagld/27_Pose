@@ -11,7 +11,7 @@ from models.experimental import attempt_load
 from utils.general import non_max_suppression_kpt,strip_optimizer,xyxy2xywh
 from utils.plots import output_to_keypoint, plot_skeleton_kpts,colors,plot_one_box_kpt
 from wheel_detector import detect_wheel
-from plots_bm_katy import plot_skeleton_kpts_bm
+from plots_bm_katy import plot_skeleton_kpts_bm, calc_angs, polt_angs, plot_trace
           
 @torch.no_grad()
 def run(poseweights="yolov7-w6-pose.pt",source="test.mp4",device='cpu',view_img=False,
@@ -21,6 +21,10 @@ def run(poseweights="yolov7-w6-pose.pt",source="test.mp4",device='cpu',view_img=
     total_fps = 0  #count total fps
     time_list = []   #list to store time
     fps_list = []    #list to store fps
+
+    stored_angs=[]
+    trace=[]
+    mass_center_trace=[]
     
     device = select_device(opt.device) #select device
     half = device.type != 'cpu'
@@ -74,8 +78,12 @@ def run(poseweights="yolov7-w6-pose.pt",source="test.mp4",device='cpu',view_img=
                 with torch.no_grad():  #get predictions
                     output_data, _ = model(image)
 
+                for i,j in enumerate(output_data):
+                    # print(str(j.conf))
+                    pass
+
                 output_data = non_max_suppression_kpt(output_data,   #Apply non max suppression
-                                            0.60,   # Conf. Threshold.
+                                            0.70,   # Conf. Threshold.
                                             0.65, # IoU Threshold.
                                             nc=model.yaml['nc'], # Number of classes.
                                             nkpt=model.yaml['nkpt'], # Number of keypoints.
@@ -87,6 +95,8 @@ def run(poseweights="yolov7-w6-pose.pt",source="test.mp4",device='cpu',view_img=
                 im0 = im0.cpu().numpy().astype(np.uint8)
                 
                 im0 = cv2.cvtColor(im0, cv2.COLOR_RGB2BGR) #reshape image format to (BGR)
+                # im0 = cv2.cvtColor(im0, cv2.COLOR_BGR2GRAY) #reshape image format to (BGR)
+
                 gn = torch.tensor(im0.shape)[[1, 0, 1, 0]]  # normalization gain whwh
 
                 im2 = np.zeros(im0.shape, np.uint8)
@@ -105,12 +115,29 @@ def run(poseweights="yolov7-w6-pose.pt",source="test.mp4",device='cpu',view_img=
                             # plot_one_box_kpt(xyxy, im0, label=label, color=colors(c, True), 
                             #             line_thickness=opt.line_thickness,kpt_label=True, kpts=kpts, steps=3, 
                             #             orig_shape=im0.shape[:2])
-                            plot_skeleton_kpts(im0, kpts, steps=3, orig_shape=im0.shape[:2])
+                            plot_skeleton_kpts_bm(im0, kpts, steps=3, orig_shape=im0.shape[:2])
                             # plot_skeleton_kpts(im2, kpts, steps=3, orig_shape=im0.shape[:2])
-                            plot_skeleton_kpts_bm(im0, kpts, steps=3, orig_shape=im2.shape[:2],delta=True)
+                            plot_skeleton_kpts_bm(im2, kpts, steps=3, orig_shape=im0.shape[:2])
 
-                            plot_skeleton_kpts_bm(im2, kpts, steps=3, orig_shape=im2.shape[:2],delta=True)
+                            stored_angs.append(calc_angs(kpts,steps=3))
+                            trace.append((int(kpts[(17-1)*3]), int(kpts[(17-1)*3+1])))
 
+                            # uwaga!!! dla środka ciężkości współrzędna x - przyjęta dla jak  x dla kostki
+                            # musi tak być żeby można było porównywać wykresy w konkretnych klatkach
+
+                            mass_center_trace.append((int(kpts[(17-1)*3]), int(kpts[(13-1)*3+1])))
+                            
+                try:
+                    polt_angs(im0, 3, stored_angs, orig_shape=None,color=(0, 0, 0))
+                    polt_angs(im2, 3, stored_angs, orig_shape=None)
+                    plot_trace(im0, 3, trace)
+                    plot_trace(im2, 3, trace)
+                    plot_trace(im0, 3 ,mass_center_trace, color=(255, 153, 153))
+                    plot_trace(im2, 3 ,mass_center_trace, color=(255, 153, 153))
+                except:
+                    pass
+
+                            
 
                             # detect_wheel(im0,im2,orig_image)
 

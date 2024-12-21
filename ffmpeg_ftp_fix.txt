@@ -1,0 +1,3 @@
+ffmpeg -i got_08.mp4 -vf "setpts=2.0*PTS" got_08_sd.mp4
+
+ffmpeg -i got_08.mp4 -r 30 -vf "setpts=2*PTS" got_08_30.mp4
