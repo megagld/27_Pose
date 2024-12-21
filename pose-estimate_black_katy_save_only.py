@@ -37,7 +37,7 @@ def run(poseweights="yolov7-w6-pose.pt",source="test.mp4",device='cpu',view_img=
         
         while(cap.isOpened): #loop until cap opened or video not complete
         
-            print("Frame {} Processing".format(frame_count+1))
+            print("Frame {} Processing".format(frame_count))
 
             ret, frame = cap.read()  #get frame and success from video capture
             
@@ -60,25 +60,27 @@ def run(poseweights="yolov7-w6-pose.pt",source="test.mp4",device='cpu',view_img=
                                             nc=model.yaml['nc'], # Number of classes.
                                             nkpt=model.yaml['nkpt'], # Number of keypoints.
                                             kpt_label=True)
-
-                for i, pose in enumerate(output_data):  # detections per image
                 
-                    if len(output_data):  #check if no pose
-                        for c in pose[:, 5].unique(): # Print results
-                            n = (pose[:, 5] == c).sum()  # detections per class
-                            print("No of Objects in Current Frame : {}".format(n))
-                        
-                        for det_index, _ in enumerate(reversed(pose[:,:6])): #loop over poses for drawing on frame
+                if output_data:  #check if no pose
+                    pose=output_data[0]
+                    for c in pose[:, 5].unique(): # Print results
+                        n = (pose[:, 5] == c).sum()  # detections per class
+                        print("No of Objects in Current Frame : {}".format(n))
+                    
+                    for det_index, _ in enumerate(reversed(pose[:,:6])): #loop over poses for drawing on frame
 
-                            kpts = pose[det_index, 6:]
+                        kpts = pose[det_index, 6:]
 
-                            kpts_to_store[frame_count]=kpts.tolist()
+                        kpts_to_store[frame_count]=kpts.tolist()
 
-                    else:
-                        kpts_to_store[frame_count]=None
-               
+                else:
+                    kpts_to_store[frame_count]=None
+
             else:
                 break
+            
+            frame_count += 1
+
 
         # saving kpts to json file
 
