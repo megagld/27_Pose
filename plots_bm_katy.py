@@ -99,7 +99,7 @@ def calc_angs(kpts,steps):
 
     return frame_x_pos+stored_angs
 
-def polt_angs(im, steps,stored_angs, orig_shape=None, color=(255, 128, 0)):
+def plot_angs(im, steps,stored_angs, orig_shape=None, color=(255, 128, 0)):
 
     podklad=[[0,800],[0,1080],[1920,1080],[1920,800]]
     podklad = np.array(podklad)

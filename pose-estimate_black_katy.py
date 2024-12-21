@@ -8,19 +8,23 @@ from torchvision import transforms
 from utils.datasets import letterbox
 from utils.torch_utils import select_device
 from models.experimental import attempt_load
-from utils.general import non_max_suppression_kpt,strip_optimizer,xyxy2xywh
+from general_bm import non_max_suppression_kpt,strip_optimizer,xyxy2xywh
 from utils.plots import output_to_keypoint, plot_skeleton_kpts,colors,plot_one_box_kpt
 from wheel_detector import detect_wheel
-from plots_bm_katy import plot_skeleton_kpts_bm, calc_angs, polt_angs, plot_trace
+from plots_bm_katy import plot_skeleton_kpts_bm, calc_angs, plot_angs, plot_trace
+import json
+
           
 @torch.no_grad()
 def run(poseweights="yolov7-w6-pose.pt",source="test.mp4",device='cpu',view_img=False,
-        save_conf=False,line_thickness = 3,hide_labels=True, hide_conf=True):
+        save_conf=False,line_thickness = 3,hide_labels=True, hide_conf=True, output_folder="test.mp4"):
 
     frame_count = 0  #count no of frames
     total_fps = 0  #count total fps
     time_list = []   #list to store time
     fps_list = []    #list to store fps
+    kpts_to_store={}
+
 
     stored_angs=[]
     trace=[]
@@ -33,6 +37,8 @@ def run(poseweights="yolov7-w6-pose.pt",source="test.mp4",device='cpu',view_img=
     _ = model.eval()
     names = model.module.names if hasattr(model, 'module') else model.names  # get class names
    
+    print(source)
+
     if source.isnumeric() :    
         cap = cv2.VideoCapture(int(source))    #pass video to videocapture object
     else :
@@ -49,11 +55,15 @@ def run(poseweights="yolov7-w6-pose.pt",source="test.mp4",device='cpu',view_img=
         
         vid_write_image = letterbox(cap.read()[1], (frame_width), stride=64, auto=True)[0] #init videowriter
         resize_height, resize_width = vid_write_image.shape[:2]
-        out_video_name = f"{source.split('/')[-1].split('.')[0]}"
-        out = cv2.VideoWriter(f"{source}_keypoint.mp4",
+        source_video_name = f"{source.split('\\')[-1]}"
+        
+        output_main_video_file="{}\\{}".format(output_folder,source_video_name.replace('.mp4','_analized.mp4'))
+        output_raw_video_file="{}\\{}".format(output_folder,source_video_name.replace('.mp4','_analized_raw.mp4'))
+
+        out = cv2.VideoWriter(output_main_video_file,
                             cv2.VideoWriter_fourcc(*'mp4v'), 30,
                             (resize_width, resize_height))
-        out_2 = cv2.VideoWriter(f"{source}_keypoint_black.mp4",
+        out_2 = cv2.VideoWriter(output_raw_video_file,
                     cv2.VideoWriter_fourcc(*'mp4v'), 30,
                     (resize_width, resize_height))
 
@@ -111,6 +121,7 @@ def run(poseweights="yolov7-w6-pose.pt",source="test.mp4",device='cpu',view_img=
                         for det_index, (*xyxy, conf, cls) in enumerate(reversed(pose[:,:6])): #loop over poses for drawing on frame
                             c = int(cls)  # integer class
                             kpts = pose[det_index, 6:]
+                            
                             label = None if opt.hide_labels else (names[c] if opt.hide_conf else f'{names[c]} {conf:.2f}')
                             # plot_one_box_kpt(xyxy, im0, label=label, color=colors(c, True), 
                             #             line_thickness=opt.line_thickness,kpt_label=True, kpts=kpts, steps=3, 
@@ -126,18 +137,21 @@ def run(poseweights="yolov7-w6-pose.pt",source="test.mp4",device='cpu',view_img=
                             # musi tak być żeby można było porównywać wykresy w konkretnych klatkach
 
                             mass_center_trace.append((int(kpts[(17-1)*3]), int(kpts[(13-1)*3+1])))
+                            kpts_to_store[frame_count]=kpts.tolist()
+
+                    else:
+                        kpts_to_store[frame_count]=None
+
                             
                 try:
-                    polt_angs(im0, 3, stored_angs, orig_shape=None,color=(0, 0, 0))
-                    polt_angs(im2, 3, stored_angs, orig_shape=None)
+                    plot_angs(im0, 3, stored_angs, orig_shape=None,color=(0, 0, 0))
+                    plot_angs(im2, 3, stored_angs, orig_shape=None)
                     plot_trace(im0, 3, trace)
                     plot_trace(im2, 3, trace)
                     plot_trace(im0, 3 ,mass_center_trace, color=(255, 153, 153))
                     plot_trace(im2, 3 ,mass_center_trace, color=(255, 153, 153))
                 except:
                     pass
-
-                            
 
                             # detect_wheel(im0,im2,orig_image)
 
@@ -161,6 +175,13 @@ def run(poseweights="yolov7-w6-pose.pt",source="test.mp4",device='cpu',view_img=
             else:
                 break
 
+        # saving kpts to json file
+
+        json_file_name= "{}\\{}".format(output_folder,source_video_name.replace('.mp4','_kpts.json'))
+
+        with open(json_file_name, "w") as jsonfile:
+            json.dump(kpts_to_store, jsonfile)
+
         cap.release()
         # cv2.destroyAllWindows()
         avg_fps = total_fps / frame_count
@@ -170,13 +191,14 @@ def run(poseweights="yolov7-w6-pose.pt",source="test.mp4",device='cpu',view_img=
 def parse_opt():
     parser = argparse.ArgumentParser()
     parser.add_argument('--poseweights', nargs='+', type=str, default='yolov7-w6-pose.pt', help='model path(s)')
-    parser.add_argument('--source', type=str, default='test.mp4', help='video/0 for webcam') #video source
+    parser.add_argument('--source', type=str, default="test.mp4", help='video/0 for webcam') #video source
     parser.add_argument('--device', type=str, default='cpu', help='cpu/0,1,2,3(gpu)')   #device arugments
     parser.add_argument('--view-img', action='store_true', help='display results')  #display results
     parser.add_argument('--save-conf', action='store_true', help='save confidences in --save-txt labels') #save confidence in txt writing
     parser.add_argument('--line-thickness', default=3, type=int, help='bounding box thickness (pixels)') #box linethickness
     parser.add_argument('--hide-labels', default=False, action='store_true', help='hide labels') #box hidelabel
     parser.add_argument('--hide-conf', default=False, action='store_true', help='hide confidences') #boxhideconf
+    parser.add_argument('--output_folder', type=str, default="test.mp4",) #video output folder
     opt = parser.parse_args()
     return opt
 
