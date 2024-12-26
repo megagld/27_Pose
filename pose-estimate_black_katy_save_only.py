@@ -13,6 +13,8 @@ import json
 def run(poseweights="yolov7-w6-pose.pt",source="test.mp4",device='cpu',view_img=False,
         save_conf=False,line_thickness = 3,hide_labels=True, hide_conf=True, output_folder="test.mp4"):
 
+    print('File: '+source)
+
     frame_count = 0  #count no of frames
     kpts_to_store={}
     
