@@ -2,7 +2,6 @@ import PIL.Image
 import tkinter as tk
 from PIL import ImageTk
 from tkinter.filedialog import askopenfilename
-import classes
 
 class CanvasImage(tk.Canvas):
     def __init__(self, master: tk.Tk, **kwargs):
@@ -33,7 +32,7 @@ class CanvasImage(tk.Canvas):
         self.image = self.image_id = None
 
     def resize_image(self) -> None:
-        image_width, image_height = self.source_image.width(),self.source_image.height()
+        image_width, image_height = self.source_image.size
         width_ratio = self.width / image_width
         height_ratio = self.height / image_height
         ratio = min(width_ratio, height_ratio)
@@ -47,17 +46,11 @@ class CanvasImage(tk.Canvas):
         self.image_id = self.create_image(self.center_x, self.center_y, image=self.image)
 
     def open_image(self) -> None:
-        # if not (filename := askopenfilename()): return
+        if not (filename := askopenfilename()): return
 
         self.delete_previous_image()
-        # self.source_image = PIL.Image.open(filename)
-        self.file='PXL_20241218_121042417_000.mp4'
-        self.frame=80
-        self.vid=classes.Clip(self.file)
-        self.vid.display_frame(self.frame)
-        self.source_image = self.vid.img_to_tk
-
-        self.image = self.vid.img_to_tk
+        self.source_image = PIL.Image.open(filename)
+        self.image = ImageTk.PhotoImage(self.source_image)
 
         self.resize_image()
         self.paste_image()

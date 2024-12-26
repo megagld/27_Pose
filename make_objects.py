@@ -23,7 +23,14 @@ import cv2
 vid_name='PXL_20241218_121042417_000.mp4'
 
 vid=classes.Clip(vid_name)
+vid.display_frame(60)
 
 
-vid.display_frame(120)
+# # video testowe - pozycja punków
+# vid_name='r.mp4'
+# vid=classes.Clip(vid_name)
+
+# vid.display_frame(3)
+
+
 pass
