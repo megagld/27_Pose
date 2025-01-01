@@ -1,8 +1,8 @@
 import PIL.Image
 import tkinter as tk
+from tkinter import ttk
 from PIL import ImageTk
 from tkinter.filedialog import askopenfilename
-from tkinter import ttk
 
 class CanvasImage(tk.Canvas):
     def __init__(self, master: tk.Tk, **kwargs):
@@ -43,63 +43,82 @@ class CanvasImage(tk.Canvas):
         scaled_image = self.source_image.resize((new_width, new_height))
         self.image = ImageTk.PhotoImage(scaled_image)
 
+    def print_size(self) -> None:
+        if self.image is None: return
+        print('x'*10)
+        print('image_size'+str(self.source_image.size))
+        print('self.size :'+str(self.width)+"x"+str(self.height))
+        print('x'*12)
+
     def paste_image(self) -> None:
         self.image_id = self.create_image(self.center_x, self.center_y, image=self.image)
 
     def open_image(self) -> None:
-
-        import classes
-        tmp=classes.Clip('PXL_20241218_121042417_000.mp4')
-        tmp.display_frame(80)
-        self.source_image=tmp.image
-
         # if not (filename := askopenfilename()): return
 
-        self.delete_previous_image()
+        # self.delete_previous_image()
         # self.source_image = PIL.Image.open(filename)
+        # self.image = ImageTk.PhotoImage(self.source_image)
 
+
+        self.filename='a.png'
+
+        self.source_image = PIL.Image.open(self.filename)
         self.image = ImageTk.PhotoImage(self.source_image)
 
         self.resize_image()
         self.paste_image()
 
-class Frame(tk.Frame):
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-
-
+class Frame_right(tk.Frame):
+    def __init__(self, master: tk.Tk, **kwargs):
+        super().__init__(master, **kwargs)
         self.canvas = CanvasImage(self, relief='sunken', bd=2)
-        self.button = tk.Button(self, text='Abrir imagen', comman=self.canvas.open_image).pack()
+        tk.Button(self, text='ładuj obraz', comman=self.canvas.open_image).pack()
+        tk.Button(self, text='canva size', comman=self.canvas.print_size).pack()
+        tk.Button(self, text='frame size', comman=self.print_size).pack()
+
         self.canvas.pack(expand=True, fill='both', padx=10, pady=10)
 
-    def print_wh(self):
-
+    def print_size(self) -> None:
         self.width = self.winfo_width()
         self.height = self.winfo_height()
-        print(self.width,self.height)
+        print('x'*10)
+        print('self.size :'+str(self.width)+"x"+str(self.height))
+        print('x'*12)
 
+class Frame_left(ttk.Frame):
+    def __init__(self, master: tk.Tk, **kwargs):
+        super().__init__(master, **kwargs)
+
+        tk.Button(self, text='frame size', comman=self.print_size).pack(expand=False, fill='both', padx=10, pady=10)
+
+
+
+
+
+
+
+
+    def print_size(self) -> None:
+        self.width = self.winfo_width()
+        self.height = self.winfo_height()
+        print('x'*10)
+        print('self.size :'+str(self.width)+"x"+str(self.height))
+        print('x'*12)
+
+class Frame(ttk.Frame):
+    def __init__(self, master: tk.Tk, **kwargs):
+        super().__init__(master, **kwargs)
+
+        self.frame_1 = Frame_left(self).pack(side='left', fill='both', expand=False)
+        self.frame_2 = Frame_right(self).pack(side='right', fill='both', expand=True)
+        self.master.minsize(800, 600)
 
 class Window(tk.Tk):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
-
-        self.frame = Frame()
-        # self.canvas = CanvasImage(self, relief='sunken', bd=2)
-        self.button = tk.Button(self, text='aaa aaa', comman=self.frame.canvas.open_image)
-        self.button2 = tk.Button(self, text='bbb bb', comman=self.frame.print_wh)
-
-        self.button.grid(row=0, column=0, pady=5, sticky=tk.NSEW)
-        self.button2.grid(row=1, column=0, pady=5, sticky=tk.NSEW)
-
-
-        self.frame.grid(row=2, column=0, pady=5, sticky=tk.NSEW)
-
-        # self.canvas.pack(expand=True, fill='both', padx=10, pady=10)
-
-
-
-
+        self.farame=Frame(self).pack(fill='both', expand=True)
 
 if __name__ == '__main__':
     window = Window()

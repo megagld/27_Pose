@@ -351,7 +351,7 @@ class Clip():
         off_width //= 2
         image = cv2.resize(image,(off_width, off_height))
         
-
+        self.tmp=orig_image
 
         from PIL import Image, ImageTk
 
