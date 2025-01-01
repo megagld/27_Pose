@@ -369,6 +369,9 @@ class Clip():
         # cv2.waitKey(0)
         # cv2.destroyAllWindows()
 
+    def test(self):
+        print('tetst')
+
 
 class OrginalVideoProperitier():
     def __init__(self,vid_path):

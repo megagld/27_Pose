@@ -2,7 +2,7 @@ import PIL.Image
 import tkinter as tk
 from tkinter import ttk
 from PIL import ImageTk
-from tkinter.filedialog import askopenfilename
+import classes
 
 class CanvasImage(tk.Canvas):
     def __init__(self, master: tk.Tk, **kwargs):
@@ -60,10 +60,12 @@ class CanvasImage(tk.Canvas):
         # self.source_image = PIL.Image.open(filename)
         # self.image = ImageTk.PhotoImage(self.source_image)
 
+        # self.filename='a.png'
 
-        self.filename='a.png'
+        # self.source_image = PIL.Image.open(self.filename)
+        self.master.master.clip.display_frame(60)
+        self.source_image = self.master.master.clip.image
 
-        self.source_image = PIL.Image.open(self.filename)
         self.image = ImageTk.PhotoImage(self.source_image)
 
         self.resize_image()
@@ -76,6 +78,7 @@ class Frame_right(tk.Frame):
         tk.Button(self, text='ładuj obraz', comman=self.canvas.open_image).pack()
         tk.Button(self, text='canva size', comman=self.canvas.print_size).pack()
         tk.Button(self, text='frame size', comman=self.print_size).pack()
+        tk.Button(self, text='frame count', comman=self.frame_cnt).pack()
 
         self.canvas.pack(expand=True, fill='both', padx=10, pady=10)
 
@@ -86,18 +89,16 @@ class Frame_right(tk.Frame):
         print('self.size :'+str(self.width)+"x"+str(self.height))
         print('x'*12)
 
+    def frame_cnt(self):
+        self.master.frame_to_display+=1
+        print(self.master.frame_to_display)
+        self.canvas.open_image()
+
 class Frame_left(ttk.Frame):
     def __init__(self, master: tk.Tk, **kwargs):
         super().__init__(master, **kwargs)
 
         tk.Button(self, text='frame size', comman=self.print_size).pack(expand=False, fill='both', padx=10, pady=10)
-
-
-
-
-
-
-
 
     def print_size(self) -> None:
         self.width = self.winfo_width()
@@ -106,19 +107,23 @@ class Frame_left(ttk.Frame):
         print('self.size :'+str(self.width)+"x"+str(self.height))
         print('x'*12)
 
-class Frame(ttk.Frame):
-    def __init__(self, master: tk.Tk, **kwargs):
-        super().__init__(master, **kwargs)
-
-        self.frame_1 = Frame_left(self).pack(side='left', fill='both', expand=False)
-        self.frame_2 = Frame_right(self).pack(side='right', fill='both', expand=True)
-        self.master.minsize(800, 600)
-
 class Window(tk.Tk):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
+        # twórz obiekt clipu
+        self.filename='PXL_20241218_121042417_000.mp4'
+        self.frame_to_display=60
 
-        self.farame=Frame(self).pack(fill='both', expand=True)
+        self.clip=classes.Clip(self.filename)
+
+        # twórz okno
+
+        self.minsize(800, 600)
+        self.frame_1 = Frame_left(self).pack(side='left', fill='both', expand=False)
+        self.frame_2 = Frame_right(self).pack(side='right', fill='both', expand=True)
+
+
+
 
 if __name__ == '__main__':
     window = Window()
