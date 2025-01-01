@@ -57,13 +57,8 @@ class CanvasImage(tk.Canvas):
         # if not (filename := askopenfilename()): return
 
         # self.delete_previous_image()
-        # self.source_image = PIL.Image.open(filename)
-        # self.image = ImageTk.PhotoImage(self.source_image)
 
-        # self.filename='a.png'
-
-        # self.source_image = PIL.Image.open(self.filename)
-        self.master.master.clip.display_frame(60)
+        self.master.master.clip.display_frame(self.master.master.frame_to_display)
         self.source_image = self.master.master.clip.image
 
         self.image = ImageTk.PhotoImage(self.source_image)
@@ -98,7 +93,8 @@ class Frame_left(ttk.Frame):
     def __init__(self, master: tk.Tk, **kwargs):
         super().__init__(master, **kwargs)
 
-        tk.Button(self, text='frame size', comman=self.print_size).pack(expand=False, fill='both', padx=10, pady=10)
+        # tk.Button(self, text='frame size', comman=self.print_size).pack(expand=False, fill='both', padx=10, pady=10)
+        self.create_widgets()
 
     def print_size(self) -> None:
         self.width = self.winfo_width()
@@ -107,10 +103,63 @@ class Frame_left(ttk.Frame):
         print('self.size :'+str(self.width)+"x"+str(self.height))
         print('x'*12)
 
+
+    def create_widgets(self):
+        
+        #set labels
+        texts=['',
+            'Wykresy:',
+            'zgięcie prawego kolana',
+            'zgięcie prawego biodra',
+            'zgięcie prawego łokcia',
+            '',
+            'zgięcię lewego kolana',
+            'zgięcie lewego biodra',
+            'zgięcie lewego łokcia']
+        
+        self.texts_state={}
+
+        for i,j in enumerate(texts):
+            label = ttk.Label(self, text=j,font=('helvetica', 10))
+            label.grid(column=0, row=i, sticky=tk.W, padx=15)
+            self.texts_state[i]=label
+
+        # set entry
+        entrys=['',
+                '',
+                'checkbox',
+                'checkbox',
+                'checkbox',
+                '',
+                'checkbox',
+                'checkbox',
+                'checkbox']
+        
+        self.entry_state={}
+
+        for i,j in enumerate(entrys):
+            if j=='':
+                entry = ttk.Label(self, text=j,font=('helvetica', 10))
+                entry.grid(column=0, row=i, sticky=tk.E, padx=5)
+            elif j=='checkbox':
+                self.var = tk.IntVar(value=0)
+                entry=tk.Checkbutton(self,variable=self.var)
+            elif j=='button':
+                entry=tk.Button(text='Oznacz pdfy', command=self.run, bg='brown', fg='white', font=('helvetica', 10, 'bold'),width=16)
+            elif j=='progresbar':
+                entry=ttk.Progressbar(self, orient='horizontal',mode='determinate', length=140)
+            else:
+                entry = ttk.Entry(self,textvariable=j,width=30)
+                entry.insert(-1, j)
+
+            entry.grid(column=1, row=i, sticky=tk.E, padx=5)
+            self.entry_state[i]=entry
+
 class Window(tk.Tk):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         # twórz obiekt clipu
+
         self.filename='PXL_20241218_121042417_000.mp4'
         self.frame_to_display=60
 
