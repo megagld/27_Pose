@@ -172,8 +172,6 @@ class Window(tk.Tk):
         self.frame_2 = Frame_right(self).pack(side='right', fill='both', expand=True)
 
 
-
-
 if __name__ == '__main__':
     window = Window()
     window.mainloop()
