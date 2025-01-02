@@ -4,6 +4,6 @@ __pycache__/**
 _analysed/**
 _dane do trenowania/**
 _data/**
-_stored data**/
+_stored data/**
 tmp_done/**
 /models/__pycache__/**
