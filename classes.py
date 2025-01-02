@@ -351,7 +351,7 @@ class Clip():
         off_width //= 2
         image = cv2.resize(image,(off_width, off_height))
         
-
+        self.tmp=orig_image
 
         from PIL import Image, ImageTk
 
@@ -368,6 +368,9 @@ class Clip():
         # cv2.moveWindow("input",1920,0)
         # cv2.waitKey(0)
         # cv2.destroyAllWindows()
+
+    def test(self):
+        print('tetst')
 
 
 class OrginalVideoProperitier():
