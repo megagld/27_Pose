@@ -20,10 +20,17 @@ import cv2
 # # tworzenie obiektu klipu 
 
 # video='_analysed/PXL_20241218_121042417_000.mp4/PXL_20241218_121042417_000.mp4'
-vid_name='PXL_20241218_121042417_000.mp4'
+vid_name='VID_20241231_125439_014.mp4'
 
 vid=classes.Clip(vid_name)
-vid.display_frame(60)
+vid.display_frame(20)
+
+# print(vid.org_vid_prop.height)
+# print(vid.org_vid_prop.width)
+# print(vid.org_vid_prop.duration_ts)
+# print(vid.org_vid_prop.frames)
+
+
 
 
 # # video testowe - pozycja punków

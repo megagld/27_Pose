@@ -5,6 +5,8 @@ import cv2
 import numpy as np
 import math
 from unidecode import unidecode
+from PIL import Image, ImageTk
+from ffprobe import FFProbe
 
 
 def angle_between_vectors(u, v):
@@ -25,8 +27,9 @@ class Point():
         self.y_disp=int(pos_y)
 
 class Frame():
-    def __init__(self,frame_count,kpts):
+    def __init__(self, frame_count, frame_time, kpts):
         self.frame_count=frame_count
+        self.frame_time=frame_time
         self.kpts=kpts
         self.detected=False
         self.skeleton_points={}
@@ -38,6 +41,7 @@ class Frame():
         self.stack_reach_len=self.get_dist(self.trace_point,self.center_of_gravity)
 
     def get_mid(self,sk_id_1,sk_id_2):
+        # zwraca punkt środkowy między dwoma punktami
         steps=3
         pos_x_1, pos_y_1= (self.kpts[(sk_id_1-1)*steps]), (self.kpts[(sk_id_1-1)*steps+1])
         pos_x_2, pos_y_2= (self.kpts[(sk_id_2-1)*steps]), (self.kpts[(sk_id_2-1)*steps+1])
@@ -45,12 +49,14 @@ class Frame():
         return (pos_x_2+pos_x_1)//2,(pos_y_2+pos_y_1)//2
     
     def get_dist(self,pkt_1, pkt_2):
+        # zwraca dystans między dwomoa punktami
         pos_x_1, pos_y_1= pkt_1
         pos_x_2, pos_y_2= pkt_2
 
         return int(((pos_x_2-pos_x_1)**2+(pos_y_2-pos_y_1)**2)**0.5)
 
     def organize_points(self):
+        # tworzy słownik ze współrzędnymi punktów szkieletu
         steps=3
         if self.kpts:
             self.detected=True
@@ -59,6 +65,7 @@ class Frame():
                 self.skeleton_points[sk_id]=Point(sk_id, pos_x, pos_y)
 
     def draw_skeleton(self,image,skeleton_to_display=None, points_to_display=None):
+        # rysuje wybrany szkielet na zadanym obrazie
 
         # cały szkielet
         skeleton = [[16, 14], [14, 12], [17, 15], [15, 13], [12, 13], [6, 12],
@@ -108,6 +115,7 @@ class Frame():
                 cv2.line(image, pos1, pos2, (int(r), int(g), int(b)), thickness=2) 
 
     def draw_skeleton_right_side(self,image):
+        # rysuje prawą stronę szkieletu
         skeleton_right_side = [ [17, 15], [15, 13],
                                 [7, 13], 
                                 [7, 9], [9, 11],
@@ -118,6 +126,8 @@ class Frame():
         self.draw_skeleton(image, skeleton_right_side, points_to_display)
 
     def draw_skeleton_left_side(self,image):
+        # rysuje lewą stronę szkieletu
+
         skeleton_left_side = [ [16, 14], [14, 12],
                             [6, 12], 
                             [6, 8], [8, 10],
@@ -128,6 +138,7 @@ class Frame():
         self.draw_skeleton(image, skeleton_left_side, points_to_display)
 
     def calc_ang(self):
+        # tworzy słownik z danymi do wykresów
 
         # punkty obliczenia kątów
         # dodać kąty pozycji tułów/poziom i głowa/kosta/rower
@@ -159,7 +170,7 @@ class Clip():
         self.name=vid_name
         self.vid_path=f'{os.getcwd()}\\_analysed\\{self.name}\\{self.name}'
 
-        self.org_vid_prop=OrginalVideoProperitier(self.vid_path)
+        # self.org_vid_prop=OrginalVideoProperitier(self.vid_path)
 
         self.frames={}
         self.add_frames()
@@ -188,7 +199,6 @@ class Clip():
         # ustawienia rysowania linii
         self.lines_state={'trace_chart':False,
                     'center_of_gravity_chart':False}
-
     
     def add_frames(self):
 
@@ -197,8 +207,17 @@ class Clip():
         with open(kpts_json_path, 'r') as f:
             data = json.load(f)
             
-        for frame,kpts in data.items():
-            self.frames[int(frame)]=Frame(int(frame),kpts)
+        for frame_count, data in enumerate(data.items()):
+
+            # frame_time, kpts = data
+
+            # do zmiany!!!!!!!!!!!!!!!!
+            frame_time, kpts = data
+            frame_time=float(frame_time)
+            # do zmiany!!!!!!!!!!!!!!!!
+
+
+            self.frames[frame_count]=Frame(frame_count, frame_time, kpts)
     
     def generate_data_charts(self):
 
@@ -271,7 +290,7 @@ class Clip():
 
             cv2.line(image, pos_2, pos_1, color, thickness)
 
-    def draw_chart_base(self,image, chart_name, chart_index,
+    def draw_chart_base(self, image, chart_name, chart_index,
                    chart_range,
                    color=(115,200,221),
                    frame_number=None):
@@ -329,11 +348,11 @@ class Clip():
             cv2.line(image, pos_1, pos_2, leading_line_color, thickness=2)
 
     def display_frame(self,frame_number):
+        from PIL import Image, ImageTk
+
         #funkcja robocza - do usunięcia
            
         cap = cv2.VideoCapture(self.vid_path)
-
-        print(self.vid_path)
 
         frame_width = int(cap.get(3))
         cap.set(1,frame_number)
@@ -353,27 +372,20 @@ class Clip():
         
         self.tmp=orig_image
 
-        from PIL import Image, ImageTk
-
         screen = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
 
         im = Image.fromarray(screen)
         self.image = Image.fromarray(screen)
 
         self.img_to_tk = ImageTk.PhotoImage(image=self.image) 
-        
-        print('x')
-
-        # cv2.imshow("input", image)
-        # cv2.moveWindow("input",1920,0)
-        # cv2.waitKey(0)
-        # cv2.destroyAllWindows()
-
-    def test(self):
-        print('tetst')
 
 
-class OrginalVideoProperitier():
-    def __init__(self,vid_path):
-        pass
-        
+# class OrginalVideoProperitier():
+#     def __init__(self,vid_path):
+#         self.metadata=FFProbe(vid_path)
+
+#         # for stream in self.metadata.streams:
+#         #     if stream.is_video():
+#         #         print('Stream contains {} frames.'.format(stream.frames()))
+#         self.height=self.metadata.streams[0].height
+#         self.width=self.metadata.streams[0].width

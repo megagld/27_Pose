@@ -160,7 +160,7 @@ class Window(tk.Tk):
         super().__init__(**kwargs)
         # twórz obiekt clipu
 
-        self.filename='PXL_20241218_121042417_000.mp4'
+        self.filename='VID_20241231_125439_014.mp4'
         self.frame_to_display=60
 
         self.clip=classes.Clip(self.filename)

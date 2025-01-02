@@ -17,7 +17,8 @@ def run(poseweights="yolov7-w6-pose.pt",source="test.mp4",device='cpu',view_img=
 
     frame_count = 0  #count no of frames
     kpts_to_store={}
-    
+    frames_times=[]
+
     device = select_device(opt.device) #select device
 
     model = attempt_load(poseweights, map_location=device)  #Load model
@@ -34,7 +35,7 @@ def run(poseweights="yolov7-w6-pose.pt",source="test.mp4",device='cpu',view_img=
 
     else:
         frame_width = int(cap.get(3))  #get video frame width
-        
+       
         source_video_name = f"{source.split('\\')[-1]}"
         
         while(cap.isOpened): #loop until cap opened or video not complete
@@ -44,6 +45,9 @@ def run(poseweights="yolov7-w6-pose.pt",source="test.mp4",device='cpu',view_img=
             ret, frame = cap.read()  #get frame and success from video capture
             
             if ret: #if success is true, means frame exist
+                frame_time=cap.get(cv2.CAP_PROP_POS_MSEC) #frame timpestamp
+                frames_times.append(frame_time)
+
                 orig_image = frame #store frame
                 image = cv2.cvtColor(orig_image, cv2.COLOR_BGR2RGB) #convert frame to RGB
                 image = letterbox(image, (frame_width), stride=64, auto=True)[0]
@@ -64,19 +68,18 @@ def run(poseweights="yolov7-w6-pose.pt",source="test.mp4",device='cpu',view_img=
                                             kpt_label=True)
                 
                 if output_data:  #check if no pose
+                    kpts_to_store[frame_time]=[]
                     pose=output_data[0]
                     for c in pose[:, 5].unique(): # Print results
                         n = (pose[:, 5] == c).sum()  # detections per class
                         print("No of Objects in Current Frame : {}".format(n))
-                    
+
                     for det_index, _ in enumerate(reversed(pose[:,:6])): #loop over poses for drawing on frame
 
                         kpts = pose[det_index, 6:]
 
-                        kpts_to_store[frame_count]=kpts.tolist()
+                        kpts_to_store[frame_time]=kpts.tolist()
 
-                else:
-                    kpts_to_store[frame_count]=None
 
             else:
                 break

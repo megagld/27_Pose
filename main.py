@@ -21,7 +21,7 @@ def run():
 
     for path,_,files in os.walk(data_dir):
         for file in files:
-            if file not in analysed_files:
+            if file not in analysed_files and '.git' not in file:
                 file_to_analyse="{}\\{}".format(data_dir,file)
                 folder_to_store="{}\\{}".format(analysed_dir,file)
 
