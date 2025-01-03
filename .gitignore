@@ -1,6 +1,6 @@
 yolov7-w6-pose.pt
 yolo-Weights/
-__pycache__/**
+__pycache__/
 _analysed/**
 _dane do trenowania/**
 _data/**
