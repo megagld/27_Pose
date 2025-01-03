@@ -80,12 +80,10 @@ def run(poseweights="yolov7-w6-pose.pt",source="test.mp4",device='cpu',view_img=
 
                         kpts_to_store[frame_time]=kpts.tolist()
 
-
             else:
                 break
             
             frame_count += 1
-
 
         # saving kpts to json file
 

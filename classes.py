@@ -28,17 +28,26 @@ class Point():
 
 class Frame():
     def __init__(self, frame_count, frame_time, kpts):
-        self.frame_count=frame_count
-        self.frame_time=frame_time
-        self.kpts=kpts
-        self.detected=False
-        self.skeleton_points={}
-        self.organize_points()
-        self.angs={}
-        self.calc_ang()
-        self.trace_point=self.get_mid(16,17)
-        self.center_of_gravity=self.get_mid(12,13)
-        self.stack_reach_len=self.get_dist(self.trace_point,self.center_of_gravity)
+
+        self.frame_count        = frame_count
+        self.frame_time         = frame_time
+        self.kpts               = kpts
+        self.detected           = kpts!=[]
+        self.skeleton_points    = {}
+        self.angs               = {}
+        self.trace_point        = None
+        self.center_of_gravity  = None
+        self.stack_reach_len    = None
+
+        self.update_data_if_detected()
+
+    def update_data_if_detected(self):
+        if self.detected:
+            self.organize_points()
+            self.calc_ang()
+            self.trace_point=self.get_mid(16,17)
+            self.center_of_gravity=self.get_mid(12,13)
+            self.stack_reach_len=self.get_dist(self.trace_point,self.center_of_gravity)
 
     def get_mid(self,sk_id_1,sk_id_2):
         # zwraca punkt środkowy między dwoma punktami
@@ -65,54 +74,57 @@ class Frame():
                 self.skeleton_points[sk_id]=Point(sk_id, pos_x, pos_y)
 
     def draw_skeleton(self,image,skeleton_to_display=None, points_to_display=None):
-        # rysuje wybrany szkielet na zadanym obrazie
 
-        # cały szkielet
-        skeleton = [[16, 14], [14, 12], [17, 15], [15, 13], [12, 13], [6, 12],
-            [7, 13], [6, 7], [6, 8], [7, 9], [8, 10], [9, 11], [2, 3],
-            [1, 2], [1, 3], [2, 4], [3, 5], [4, 6], [5, 7]]
-        
-        key_points=list(range(1,18))
-        
-        # części szkieletu do wyświetlenia
-        if not skeleton_to_display:
-            skeleton_to_display=skeleton
+        if self.detected:
+                
+            # rysuje wybrany szkielet na zadanym obrazie
 
-        if not points_to_display:
-            points_to_display=key_points
+            # cały szkielet
+            skeleton = [[16, 14], [14, 12], [17, 15], [15, 13], [12, 13], [6, 12],
+                [7, 13], [6, 7], [6, 8], [7, 9], [8, 10], [9, 11], [2, 3],
+                [1, 2], [1, 3], [2, 4], [3, 5], [4, 6], [5, 7]]
+            
+            key_points=list(range(1,18))
+            
+            # części szkieletu do wyświetlenia
+            if not skeleton_to_display:
+                skeleton_to_display=skeleton
 
-        #Plot the skeleton and keypointsfor coco datatset
-        palette = np.array([[255, 128, 0], [255, 153, 51], [255, 178, 102],
-                            [230, 230, 0], [255, 153, 255], [153, 204, 255],
-                            [255, 102, 255], [255, 51, 255], [102, 178, 255],
-                            [51, 153, 255], [255, 153, 153], [255, 102, 102],
-                            [255, 51, 51], [153, 255, 153], [102, 255, 102],
-                            [51, 255, 51], [0, 255, 0], [0, 0, 255], [255, 0, 0],
-                            [255, 255, 255]])
-        
-        pose_limb_color = palette[[0, 9, 9, 9, 9, 7, 7, 7, 0, 0, 0, 0, 0, 16, 16, 16, 16, 16, 16, 16]]
-        pose_kpt_color = palette[[0, 16, 16, 16, 16, 16, 0, 0, 0, 0, 0, 0, 9, 9, 9, 9, 9, 9]]
-        radius = 4
+            if not points_to_display:
+                points_to_display=key_points
 
-        for kid in key_points:
-                r, g, b = pose_kpt_color[kid]
-                x_coord, y_coord = self.skeleton_points[kid].x_disp, self.skeleton_points[kid].y_disp
-                if not (x_coord % 640 == 0 or y_coord % 640 == 0):
-                    if kid in points_to_display:
-                        cv2.circle(image, (x_coord, y_coord), radius, (int(r), int(g), int(b)), -1)
+            #Plot the skeleton and keypointsfor coco datatset
+            palette = np.array([[255, 128, 0], [255, 153, 51], [255, 178, 102],
+                                [230, 230, 0], [255, 153, 255], [153, 204, 255],
+                                [255, 102, 255], [255, 51, 255], [102, 178, 255],
+                                [51, 153, 255], [255, 153, 153], [255, 102, 102],
+                                [255, 51, 51], [153, 255, 153], [102, 255, 102],
+                                [51, 255, 51], [0, 255, 0], [0, 0, 255], [255, 0, 0],
+                                [255, 255, 255]])
+            
+            pose_limb_color = palette[[0, 9, 9, 9, 9, 7, 7, 7, 0, 0, 0, 0, 0, 16, 16, 16, 16, 16, 16, 16]]
+            pose_kpt_color = palette[[0, 16, 16, 16, 16, 16, 0, 0, 0, 0, 0, 0, 9, 9, 9, 9, 9, 9]]
+            radius = 4
 
-        for sk_id, sk in enumerate(skeleton,1):
-            r, g, b = pose_limb_color[sk_id]
+            for kid in key_points:
+                    r, g, b = pose_kpt_color[kid]
+                    x_coord, y_coord = self.skeleton_points[kid].x_disp, self.skeleton_points[kid].y_disp
+                    if not (x_coord % 640 == 0 or y_coord % 640 == 0):
+                        if kid in points_to_display:
+                            cv2.circle(image, (x_coord, y_coord), radius, (int(r), int(g), int(b)), -1)
 
-            pos1 = self.skeleton_points[sk[0]].x_disp, self.skeleton_points[sk[0]].y_disp
-            pos2 = self.skeleton_points[sk[1]].x_disp, self.skeleton_points[sk[1]].y_disp
+            for sk_id, sk in enumerate(skeleton,1):
+                r, g, b = pose_limb_color[sk_id]
 
-            if pos1[0]%640 == 0 or pos1[1]%640==0 or pos1[0]<0 or pos1[1]<0:
-                continue
-            if pos2[0] % 640 == 0 or pos2[1] % 640 == 0 or pos2[0]<0 or pos2[1]<0:
-                continue
-            if sk in skeleton_to_display:
-                cv2.line(image, pos1, pos2, (int(r), int(g), int(b)), thickness=2) 
+                pos1 = self.skeleton_points[sk[0]].x_disp, self.skeleton_points[sk[0]].y_disp
+                pos2 = self.skeleton_points[sk[1]].x_disp, self.skeleton_points[sk[1]].y_disp
+
+                if pos1[0]%640 == 0 or pos1[1]%640==0 or pos1[0]<0 or pos1[1]<0:
+                    continue
+                if pos2[0] % 640 == 0 or pos2[1] % 640 == 0 or pos2[0]<0 or pos2[1]<0:
+                    continue
+                if sk in skeleton_to_display:
+                    cv2.line(image, pos1, pos2, (int(r), int(g), int(b)), thickness=2) 
 
     def draw_skeleton_right_side(self,image):
         # rysuje prawą stronę szkieletu
@@ -168,7 +180,7 @@ class Frame():
 class Clip():
     def __init__(self,vid_name):
         self.name=vid_name
-        self.vid_path=f'{os.getcwd()}\\_analysed\\{self.name}\\{self.name}'
+        self.vid_path=f'{os.getcwd()}\\_data\\{self.name}'
 
         # self.org_vid_prop=OrginalVideoProperitier(self.vid_path)
 
@@ -190,10 +202,10 @@ class Clip():
         self.draw_leading_line=True
         
         self.charts_state={'right_knee_chart':[True,(90,180),True],
-                            'left_knee_chart':[True,(90,180),True],
+                            'left_knee_chart':[False,(90,180),True],
                             'right_hip_chart':[True,(90,180),True],
                             'left_hip_chart':[False,(90,180),True],
-                            'right_elbow_chart':[False,(90,180),True],
+                            'right_elbow_chart':[True,(90,180),True],
                             'left_elbow_chart':[False,(90,180),True]}
         
         # ustawienia rysowania linii
@@ -202,7 +214,7 @@ class Clip():
     
     def add_frames(self):
 
-        kpts_json_path=f'{os.getcwd()}\\_analysed\\{self.name}\\{self.name.replace('.mp4','_kpts.json')}'
+        kpts_json_path=f'{os.getcwd()}\\_analysed\\{self.name.replace('.mp4','_kpts.json')}'
 
         with open(kpts_json_path, 'r') as f:
             data = json.load(f)
@@ -215,7 +227,6 @@ class Clip():
             frame_time, kpts = data
             frame_time=float(frame_time)
             # do zmiany!!!!!!!!!!!!!!!!
-
 
             self.frames[frame_count]=Frame(frame_count, frame_time, kpts)
     
@@ -231,8 +242,11 @@ class Clip():
         
         for charts in self.charts.keys():
             for frame,frame_obj in self.frames.items():
-                self.charts[charts][frame]=[frame_obj.skeleton_points[17].x_disp,int(frame_obj.angs[charts[:-6]])]
-
+                if frame_obj.detected:
+                    self.charts[charts][frame]=[frame_obj.skeleton_points[17].x_disp,int(frame_obj.angs[charts[:-6]])]
+                else:
+                    self.charts[charts][frame]=None
+                    
     def generate_data_lines(self):
         # linie trasy (wg punktu kostki 17 i 16) i środka ciężkości (biodro1 13 i 12)
         self.lines['trace_chart']={'name':'linia trasy'}
@@ -265,14 +279,16 @@ class Clip():
                     pos_1=self.charts[chart_name][frame-1]
                     pos_2=self.charts[chart_name][frame]
 
-                    # korekta - odwócenie wykresu do góry nogami, przesunięcie w pionie i ograniczenie zakresu         
+                    # jeśli dane dla obu klatek występują to:
+                    if all((pos_1,pos_2)):
+                        # korekta - odwócenie wykresu do góry nogami, przesunięcie w pionie i ograniczenie zakresu         
 
-                    delta_y=self.chart_y_pos+chart_range[1]+chart_index*self.chart_height
+                        delta_y=self.chart_y_pos+chart_range[1]+chart_index*self.chart_height
 
-                    pos_1=self.charts[chart_name][frame-1][0], -1 * self.charts[chart_name][frame-1][1] + delta_y
-                    pos_2=self.charts[chart_name][frame][0], -1 * self.charts[chart_name][frame][1] + delta_y
+                        pos_1=self.charts[chart_name][frame-1][0], -1 * self.charts[chart_name][frame-1][1] + delta_y
+                        pos_2=self.charts[chart_name][frame][0], -1 * self.charts[chart_name][frame][1] + delta_y
 
-                    tmp_store.append((pos_1,pos_2))
+                        tmp_store.append((pos_1,pos_2))
 
                 charts_lines_to_draw.append(tmp_store)
                 
@@ -331,21 +347,24 @@ class Clip():
         lok_opis_wykresu=(20,background_delta_y_1+25)
         
         cv2.putText(image, text, lok_opis_wykresu, font, fontScale, text_color, thickness)
-        # wartość
 
-        lok_opis_wykresu=(self.charts[chart_name][frame_number][0]+20, background_delta_y_1+25)
-        text=str(self.charts[chart_name][frame_number][1])
-        cv2.putText(image, text, lok_opis_wykresu, font, fontScale, text_color, thickness)
+        # opisy, tylko jeśli na ekranie jest wykryty szkielet
+        if self.frames[frame_number].detected:
+            # wartość
 
-        # rysowanie linie wiodącej dla klatki
-        if self.draw_leading_line and frame_number:
+            lok_opis_wykresu=(self.charts[chart_name][frame_number][0]+20, background_delta_y_1+25)
+            text=str(self.charts[chart_name][frame_number][1])
+            cv2.putText(image, text, lok_opis_wykresu, font, fontScale, text_color, thickness)
 
-            leading_line_color=(0,0,0)
-            
-            pos_1=self.charts[chart_name][frame_number][0],0
-            pos_2=self.charts[chart_name][frame_number][0],image.shape[0]
+            # rysowanie linie wiodącej dla klatki
+            if self.draw_leading_line and frame_number:
 
-            cv2.line(image, pos_1, pos_2, leading_line_color, thickness=2)
+                leading_line_color=(0,0,0)
+                
+                pos_1=self.charts[chart_name][frame_number][0],0
+                pos_2=self.charts[chart_name][frame_number][0],image.shape[0]
+
+                cv2.line(image, pos_1, pos_2, leading_line_color, thickness=2)
 
     def display_frame(self,frame_number):
         from PIL import Image, ImageTk

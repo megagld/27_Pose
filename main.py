@@ -17,15 +17,16 @@ def set_dirs():
 
 def run():
     # ustalenie które pliki są już przeanalizowane
-    _,analysed_files,_=list(os.walk(analysed_dir))[0]
+    main_dir = os.getcwd()
+    _,_,analysed_files=list(os.walk(analysed_dir))[0]
 
     for path,_,files in os.walk(data_dir):
         for file in files:
-            if file not in analysed_files and '.git' not in file:
-                file_to_analyse="{}\\{}".format(data_dir,file)
-                folder_to_store="{}\\{}".format(analysed_dir,file)
+            tmp_file_name       = file.replace('.mp4','_kpts.json')
+            if tmp_file_name not in analysed_files and '.git' not in file:
 
-                os.makedirs("{}\\{}".format(analysed_dir,file))
+                file_to_analyse="{}\\{}".format(data_dir,file)
+                folder_to_store=analysed_dir
 
                 analyse(file_to_analyse,folder_to_store)
             else:
