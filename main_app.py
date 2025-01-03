@@ -56,7 +56,7 @@ class CanvasImage(tk.Canvas):
     def open_image(self) -> None:
         # if not (filename := askopenfilename()): return
 
-        # self.delete_previous_image()
+        self.delete_previous_image()
 
         self.master.master.clip.display_frame(self.master.master.frame_to_display)
         self.source_image = self.master.master.clip.image
@@ -69,13 +69,28 @@ class CanvasImage(tk.Canvas):
 class Frame_right(tk.Frame):
     def __init__(self, master: tk.Tk, **kwargs):
         super().__init__(master, **kwargs)
+
+        self.width = self.winfo_width()
+        print(self.width)
+
+        self.var = None
+
         self.canvas = CanvasImage(self, relief='sunken', bd=2)
         tk.Button(self, text='ładuj obraz', comman=self.canvas.open_image).pack()
         tk.Button(self, text='canva size', comman=self.canvas.print_size).pack()
         tk.Button(self, text='frame size', comman=self.print_size).pack()
-        tk.Button(self, text='frame count', comman=self.frame_cnt).pack()
+        tk.Button(self, text='frame count +', comman=self.frame_cnt_forward).pack()
+        tk.Button(self, text='frame count -', comman=self.frame_cnt_back).pack()
+
+        tk.Scale(self, variable = self.var, orient='horizontal', length=400, to=30, command=self.update_view).pack()
 
         self.canvas.pack(expand=True, fill='both', padx=10, pady=10)
+
+    def update_view(self,x) -> None:
+        self.master.frame_to_display=int(x)
+        self.canvas.open_image()
+        print(x)
+
 
     def print_size(self) -> None:
         self.width = self.winfo_width()
@@ -84,8 +99,13 @@ class Frame_right(tk.Frame):
         print('self.size :'+str(self.width)+"x"+str(self.height))
         print('x'*12)
 
-    def frame_cnt(self):
+    def frame_cnt_forward(self):
         self.master.frame_to_display+=1
+        print(self.master.frame_to_display)
+        self.canvas.open_image()
+
+    def frame_cnt_back(self):
+        self.master.frame_to_display-=1
         print(self.master.frame_to_display)
         self.canvas.open_image()
 
@@ -103,19 +123,18 @@ class Frame_left(ttk.Frame):
         print('self.size :'+str(self.width)+"x"+str(self.height))
         print('x'*12)
 
-
     def create_widgets(self):
         
         #set labels
         texts=['',
-            'Wykresy:',
-            'zgięcie prawego kolana',
-            'zgięcie prawego biodra',
-            'zgięcie prawego łokcia',
-            '',
-            'zgięcię lewego kolana',
-            'zgięcie lewego biodra',
-            'zgięcie lewego łokcia']
+                'Wykresy:',
+                'zgięcie prawego kolana',
+                'zgięcie prawego biodra',
+                'zgięcie prawego łokcia',
+                '',
+                'zgięcię lewego kolana',
+                'zgięcie lewego biodra',
+                'zgięcie lewego łokcia']
         
         self.texts_state={}
 
@@ -160,7 +179,7 @@ class Window(tk.Tk):
         super().__init__(**kwargs)
         # twórz obiekt clipu
 
-        self.filename='PXL_20241218_121042417_000.mp4'
+        self.filename='test.mp4'
         self.frame_to_display=20
 
         self.clip=classes.Clip(self.filename)

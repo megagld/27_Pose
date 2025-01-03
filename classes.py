@@ -182,6 +182,8 @@ class Clip():
         self.name=vid_name
         self.vid_path=f'{os.getcwd()}\\_data\\{self.name}'
 
+        self.cap = cv2.VideoCapture(self.vid_path)
+
         # self.org_vid_prop=OrginalVideoProperitier(self.vid_path)
 
         self.frames={}
@@ -367,36 +369,37 @@ class Clip():
                 cv2.line(image, pos_1, pos_2, leading_line_color, thickness=2)
 
     def display_frame(self,frame_number):
-        from PIL import Image, ImageTk
+        # from PIL import Image, ImageTk
 
         #funkcja robocza - do usunięcia
            
-        cap = cv2.VideoCapture(self.vid_path)
 
-        frame_width = int(cap.get(3))
-        cap.set(1,frame_number)
-        res, orig_image = cap.read()
+        # frame_width = int(cap.get(3))
+        self.cap.set(1,frame_number)
+        res, image = self.cap.read()
+
  
-        image = cv2.cvtColor(orig_image, cv2.COLOR_BGR2RGB) #convert frame to RGB
-        image = letterbox(orig_image, (frame_width), stride=64, auto=True)[0]
+        # image = letterbox(orig_image, (frame_width), stride=64, auto=True)[0]
 
-        self.frames[frame_number].draw_skeleton(image)
+        self.frames[frame_number].draw_skeleton_right_side(image)
 
         self.draw_charts(image, frame_number)
 
-        off_height, off_width = image.shape[:2]
-        off_height //= 2
-        off_width //= 2
-        image = cv2.resize(image,(off_width, off_height))
-        
-        self.tmp=orig_image
+        image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB) #convert frame to RGB
+       
+        # self.tmp=orig_image
 
-        screen = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
+        # screen = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
 
-        im = Image.fromarray(screen)
-        self.image = Image.fromarray(screen)
+        # im = Image.fromarray(screen)
+        self.image = image
 
-        self.img_to_tk = ImageTk.PhotoImage(image=self.image) 
+        self.image = Image.fromarray(image)
+
+        # cv2.imshow('frame', image)
+
+
+        # self.img_to_tk = ImageTk.PhotoImage(image=self.image) 
 
 
 # class OrginalVideoProperitier():
