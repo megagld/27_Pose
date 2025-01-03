@@ -71,6 +71,7 @@ class Frame_right(tk.Frame):
         super().__init__(master, **kwargs)
 
         self.width = self.winfo_width()
+        self.print_size()
         print(self.width)
 
         self.var = None
@@ -82,7 +83,9 @@ class Frame_right(tk.Frame):
         tk.Button(self, text='frame count +', comman=self.frame_cnt_forward).pack()
         tk.Button(self, text='frame count -', comman=self.frame_cnt_back).pack()
 
-        tk.Scale(self, variable = self.var, orient='horizontal', length=400, to=30, command=self.update_view).pack()
+        self.scale=tk.Scale(self, variable = self.var, orient='horizontal', to=29, command=self.update_view)
+
+        self.scale.pack(side="top", fill="x", expand=False)
 
         self.canvas.pack(expand=True, fill='both', padx=10, pady=10)
 
@@ -101,13 +104,13 @@ class Frame_right(tk.Frame):
 
     def frame_cnt_forward(self):
         self.master.frame_to_display+=1
-        print(self.master.frame_to_display)
         self.canvas.open_image()
+        self.scale.set(self.master.frame_to_display)
 
     def frame_cnt_back(self):
         self.master.frame_to_display-=1
-        print(self.master.frame_to_display)
         self.canvas.open_image()
+        self.scale.set(self.master.frame_to_display)
 
 class Frame_left(ttk.Frame):
     def __init__(self, master: tk.Tk, **kwargs):
