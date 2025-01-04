@@ -23,6 +23,7 @@ def run():
     for path,_,files in os.walk(data_dir):
         for file in files:
             tmp_file_name       = file.replace('.mp4','_kpts.json')
+            
             if tmp_file_name not in analysed_files and '.git' not in file:
 
                 file_to_analyse="{}\\{}".format(data_dir,file)

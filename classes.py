@@ -1,12 +1,12 @@
 import os
 import json
-from utils.datasets import letterbox
 import cv2
 import numpy as np
 import math
 from unidecode import unidecode
 from PIL import Image, ImageTk
 from ffprobe import FFProbe
+from general_bm import letterbox_calc
 
 
 def angle_between_vectors(u, v):
@@ -27,7 +27,7 @@ class Point():
         self.y_disp=int(pos_y)
 
 class Frame():
-    def __init__(self, frame_count, frame_time, kpts):
+    def __init__(self, frame_count, frame_time, kpts, frame_offsets):
 
         self.frame_count        = frame_count
         self.frame_time         = frame_time
@@ -38,6 +38,9 @@ class Frame():
         self.trace_point        = None
         self.center_of_gravity  = None
         self.stack_reach_len    = None
+        self.frame_offsets      = frame_offsets
+        self.left_ofset         = -1 * self.frame_offsets[0]
+        self.top_offset         = -1 * self.frame_offsets[1]
 
         self.update_data_if_detected()
 
@@ -70,7 +73,7 @@ class Frame():
         if self.kpts:
             self.detected=True
             for sk_id in range(1,18):
-                pos_x, pos_y = (self.kpts[(sk_id-1)*steps]), (self.kpts[(sk_id-1)*steps+1])
+                pos_x, pos_y = (self.kpts[(sk_id-1)*steps])+self.left_ofset, (self.kpts[(sk_id-1)*steps+1])+self.top_offset
                 self.skeleton_points[sk_id]=Point(sk_id, pos_x, pos_y)
 
     def draw_skeleton(self,image,skeleton_to_display=None, points_to_display=None):
@@ -184,10 +187,19 @@ class Clip():
 
         self.cap = cv2.VideoCapture(self.vid_path)
 
+        # dane do korekty pozycji x y punktów - ze wzgledu na zmianę formatu video do rozpoznawania "letterbox"
+        
+        self.left_ofset=0
+        self.top_offset=0
+        self.frame_offsets=self.left_ofset,self.top_offset
+        self.calc_frame_offset()
+
         # self.org_vid_prop=OrginalVideoProperitier(self.vid_path)
 
         self.frames={}
         self.add_frames()
+
+        self.frames_amount=len(self.frames)
 
         # dane do wykresów i linii
         self.charts={}
@@ -213,6 +225,20 @@ class Clip():
         # ustawienia rysowania linii
         self.lines_state={'trace_chart':False,
                     'center_of_gravity_chart':False}
+        
+
+    def calc_frame_offset(self):
+
+        self.cap.set(0,1)
+        _, img = self.cap.read()
+        frame_width = int(self.cap.get(3))
+
+        self.left_ofset, self.top_offset= letterbox_calc(img, (frame_width), stride=64, auto=True)
+
+        print(self.left_ofset)
+
+        print(self.top_offset)
+
     
     def add_frames(self):
 
@@ -230,7 +256,7 @@ class Clip():
             frame_time=float(frame_time)
             # do zmiany!!!!!!!!!!!!!!!!
 
-            self.frames[frame_count]=Frame(frame_count, frame_time, kpts)
+            self.frames[frame_count]=Frame(frame_count, frame_time, kpts, self.frame_offsets)
     
     def generate_data_charts(self):
 
@@ -400,6 +426,34 @@ class Clip():
 
 
         # self.img_to_tk = ImageTk.PhotoImage(image=self.image) 
+
+
+    def make_video_clip(self):
+
+        output_folder='_clips'
+
+        output_video_clip_file="{}\\{}".format(output_folder,self.name.replace('.mp4','_analized.mp4'))
+          
+        print(output_video_clip_file)
+        out = cv2.VideoWriter(output_video_clip_file,
+                            cv2.VideoWriter_fourcc(*'mp4v'), 30,
+                            (1920, 1080))
+
+        
+        for frame_number in range(self.frames_amount-1):
+
+            print(frame_number)
+
+            self.cap.set(1,frame_number)
+            res, image = self.cap.read()
+    
+            self.frames[frame_number].draw_skeleton_right_side(image)
+
+            self.draw_charts(image, frame_number)
+        
+            out.write(image)  #writing the video frame
+
+
 
 
 # class OrginalVideoProperitier():

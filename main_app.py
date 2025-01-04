@@ -71,8 +71,8 @@ class Frame_right(tk.Frame):
         super().__init__(master, **kwargs)
 
         self.width = self.winfo_width()
-        self.print_size()
-        print(self.width)
+
+        self.scale_range = self.master.clip.frames_amount-1
 
         self.var = None
 
@@ -82,20 +82,20 @@ class Frame_right(tk.Frame):
         tk.Button(self, text='frame size', comman=self.print_size).pack()
         tk.Button(self, text='frame count +', comman=self.frame_cnt_forward).pack()
         tk.Button(self, text='frame count -', comman=self.frame_cnt_back).pack()
+        tk.Button(self, text='play/stop', comman=self.play_stop).pack()
 
-        self.scale=tk.Scale(self, variable = self.var, orient='horizontal', to=29, command=self.update_view)
+        self.scale=ttk.Scale(self, variable = self.var, orient='horizontal', to=self.scale_range, command=self.update_view)
 
         self.scale.pack(side="top", fill="x", expand=False)
 
         self.canvas.pack(expand=True, fill='both', padx=10, pady=10)
 
     def update_view(self,x) -> None:
-        self.master.frame_to_display=int(x)
+        self.master.frame_to_display=int(float(x))
         self.canvas.open_image()
         print(x)
 
-
-    def print_size(self) -> None:
+    def print_size(self) -> None:       
         self.width = self.winfo_width()
         self.height = self.winfo_height()
         print('x'*10)
@@ -104,15 +104,39 @@ class Frame_right(tk.Frame):
 
     def frame_cnt_forward(self):
         self.master.frame_to_display+=1
+        self.master.frame_to_display=min(self.master.frame_to_display, self.scale_range)
         self.canvas.open_image()
         self.scale.set(self.master.frame_to_display)
 
     def frame_cnt_back(self):
         self.master.frame_to_display-=1
+        self.master.frame_to_display=max(0, self.master.frame_to_display)
         self.canvas.open_image()
         self.scale.set(self.master.frame_to_display)
 
-class Frame_left(ttk.Frame):
+    def play_stop(self):
+
+        self.master.play=not self.master.play
+
+        print(self.master.play)
+
+        self.play_video()
+
+    def play_video(self):
+        # if self.play == True:
+        #     # while True:
+        #     self.master.frame_to_display+=1
+        #     self.master.frame_to_display%=(self.master.clip.frames_amount-20)
+        #         # print(self.master.frame_to_display)
+        #         # self.canvas.open_image()
+        #     print(self.master.frame_to_display)
+        # else:
+        #     pass
+        pass
+
+
+
+class Frame_left(tk.Frame):
     def __init__(self, master: tk.Tk, **kwargs):
         super().__init__(master, **kwargs)
 
@@ -182,7 +206,9 @@ class Window(tk.Tk):
         super().__init__(**kwargs)
         # twórz obiekt clipu
 
-        self.filename='test.mp4'
+        self.play=False
+
+        self.filename='PXL_20241218_121042417_001.mp4'
         self.frame_to_display=20
 
         self.clip=classes.Clip(self.filename)
@@ -190,8 +216,22 @@ class Window(tk.Tk):
         # twórz okno
 
         self.minsize(800, 600)
-        self.frame_1 = Frame_left(self).pack(side='left', fill='both', expand=False)
-        self.frame_2 = Frame_right(self).pack(side='right', fill='both', expand=True)
+        self.frame_1 = Frame_left(self, bg='red').pack(side='left', fill='both', expand=False)
+        self.frame_2 = Frame_right(self, bg='green',).pack(side='right', fill='both', expand=True)
+
+        self.delay = 30
+        if self.play==True:
+            self.frame_to_display+=1
+            print(self.frame_to_display)
+        if self.frame_2:
+            self.update()
+            print('update')
+        
+    
+    def update(self):
+        self.frame_2.canvas.open_image()
+        self.after(self.delay, self.update)
+        pass
 
 
 if __name__ == '__main__':
