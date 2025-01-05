@@ -82,7 +82,7 @@ class Frame_right(tk.Frame):
         tk.Button(self, text='frame size', comman=self.print_size).pack()
         tk.Button(self, text='frame count +', comman=self.frame_cnt_forward).pack()
         tk.Button(self, text='frame count -', comman=self.frame_cnt_back).pack()
-        tk.Button(self, text='play/stop', comman=self.play_stop).pack()
+        tk.Button(self, text='make clip', comman=self.make_clip).pack()
 
         self.scale=ttk.Scale(self, variable = self.var, orient='horizontal', to=self.scale_range, command=self.update_view)
 
@@ -134,6 +134,8 @@ class Frame_right(tk.Frame):
         #     pass
         pass
 
+    def make_clip(self):
+        self.master.clip.make_video_clip()
 
 
 class Frame_left(tk.Frame):
@@ -208,7 +210,7 @@ class Window(tk.Tk):
 
         self.play=False
 
-        self.filename='PXL_20241218_121042417_001.mp4'
+        self.filename='test.mp4'
         self.frame_to_display=20
 
         self.clip=classes.Clip(self.filename)
@@ -216,8 +218,8 @@ class Window(tk.Tk):
         # twórz okno
 
         self.minsize(800, 600)
-        self.frame_1 = Frame_left(self, bg='red').pack(side='left', fill='both', expand=False)
-        self.frame_2 = Frame_right(self, bg='green',).pack(side='right', fill='both', expand=True)
+        self.frame_1 = Frame_left(self).pack(side='left', fill='both', expand=False)
+        self.frame_2 = Frame_right(self).pack(side='right', fill='both', expand=True)
 
         self.delay = 30
         if self.play==True:

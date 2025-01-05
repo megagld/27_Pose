@@ -276,9 +276,21 @@ class Clip():
                     self.charts[charts][frame]=None
                     
     def generate_data_lines(self):
-        # linie trasy (wg punktu kostki 17 i 16) i środka ciężkości (biodro1 13 i 12)
+        # linie trasy (wg punktu kostki 17 i 16) i środka ciężkości (biodro 13 i 12)
         self.lines['trace_chart']={'name':'linia trasy'}
         self.lines['center_of_gravity_chart']={'name':'linia środka ciężkości'}
+
+        for frame,frame_obj in self.frames.items():
+            if frame_obj.detected:
+                self.lines['trace_chart'][frame]=[frame_obj.skeleton_points[17].x_disp,frame_obj.skeleton_points[17].y_disp]
+            else:
+                self.charts['trace_chart'][frame]=None
+
+        for frame,frame_obj in self.frames.items():
+            if frame_obj.detected:
+                self.lines['center_of_gravity_chart'][frame]=[frame_obj.skeleton_points[17].x_disp,frame_obj.skeleton_points[13].y_disp]
+            else:
+                self.charts['center_of_gravity_chart'][frame]=None
 
     def draw_charts(self,image, frame_number):
        
@@ -313,8 +325,8 @@ class Clip():
 
                         delta_y=self.chart_y_pos+chart_range[1]+chart_index*self.chart_height
 
-                        pos_1=self.charts[chart_name][frame-1][0], -1 * self.charts[chart_name][frame-1][1] + delta_y
-                        pos_2=self.charts[chart_name][frame][0], -1 * self.charts[chart_name][frame][1] + delta_y
+                        pos_1=self.charts[chart_name][frame-1][0],   -1 * self.charts[chart_name][frame-1][1]   + delta_y
+                        pos_2=self.charts[chart_name][frame][0],     -1 * self.charts[chart_name][frame][1]     + delta_y
 
                         tmp_store.append((pos_1,pos_2))
 
@@ -324,6 +336,34 @@ class Clip():
 
         # rysowanie linii wykresów
         for line_to_draw in charts_lines_to_draw:
+            self.draw_line(image, line_to_draw, color=(255, 128, 0))
+
+    def draw_trace(self,image,frame_number):
+        # zebranie danych do rysowania lini wykresu
+        # pobranie danych
+        data_to_draw=self.lines['trace_chart']
+        lines_to_draw=[]
+
+        frames=sorted(i for i in data_to_draw.keys() if type(i)==int)
+
+        tmp_store=[]
+        for frame in frames[1:]:
+
+            pos_1=self.lines['trace_chart'][frame-1]
+            pos_2=self.lines['trace_chart'][frame]
+
+            # jeśli dane dla obu klatek występują to:
+            if all((pos_1,pos_2)):
+
+                pos_1=self.lines['trace_chart'][frame-1][0]
+                pos_2=self.lines['trace_chart'][frame][0]
+
+                tmp_store.append((pos_1,pos_2))
+
+        lines_to_draw.append(tmp_store)
+
+        # rysowanie linii trasy
+        for line_to_draw in lines_to_draw:
             self.draw_line(image, line_to_draw, color=(255, 128, 0))
 
     def draw_line(self, image, line_to_draw, color=(0, 0, 0), thickness=3):
@@ -336,20 +376,28 @@ class Clip():
 
     def draw_chart_base(self, image, chart_name, chart_index,
                    chart_range,
-                   color=(115,200,221),
+                   color=(115,200,221,50),
                    frame_number=None):
         
         # rysowanie tła wykresu
         background_delta_y_1=self.chart_y_pos+(chart_index)*self.chart_height
         background_delta_y_2=self.chart_y_pos+(chart_index+1)*self.chart_height
         
-        podklad=[[0,background_delta_y_1],[0,background_delta_y_2],
-                 [image.shape[1],background_delta_y_2],
-                 [image.shape[1],background_delta_y_1]]
+        # podklad=[[0,background_delta_y_1],[0,background_delta_y_2],
+        #          [image.shape[1],background_delta_y_2],
+        #          [image.shape[1],background_delta_y_1]]
         
-        podklad = np.array(podklad)
+        # podklad = np.array(podklad)
         if self.draw_background:
-            cv2.fillPoly(image, [podklad], color)
+            x, y, w, h = 0, background_delta_y_1, image.shape[1], background_delta_y_2-background_delta_y_1
+            sub_img = image[y:y+h, x:x+w]
+            white_rect = np.ones(sub_img.shape, dtype=np.uint8) * 255
+
+            res = cv2.addWeighted(sub_img, 0.5, white_rect, 0.5, 1.0)
+
+            # Putting the image back to its position
+            image[y:y+h, x:x+w] = res
+            # cv2.fillPoly(image, [podklad], color)
 
         # rysowanie lini ograniczajacych wykres
         chart_frame_color=(0,0,0)
@@ -394,39 +442,25 @@ class Clip():
 
                 cv2.line(image, pos_1, pos_2, leading_line_color, thickness=2)
 
+
+
     def display_frame(self,frame_number):
-        # from PIL import Image, ImageTk
 
-        #funkcja robocza - do usunięcia
-           
-
-        # frame_width = int(cap.get(3))
         self.cap.set(1,frame_number)
-        res, image = self.cap.read()
 
- 
-        # image = letterbox(orig_image, (frame_width), stride=64, auto=True)[0]
+        _, image = self.cap.read()
 
         self.frames[frame_number].draw_skeleton_right_side(image)
 
         self.draw_charts(image, frame_number)
+        
+        self.draw_trace(image,frame_number)
 
         image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB) #convert frame to RGB
-       
-        # self.tmp=orig_image
 
-        # screen = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
-
-        # im = Image.fromarray(screen)
         self.image = image
 
         self.image = Image.fromarray(image)
-
-        # cv2.imshow('frame', image)
-
-
-        # self.img_to_tk = ImageTk.PhotoImage(image=self.image) 
-
 
     def make_video_clip(self):
 
@@ -434,34 +468,19 @@ class Clip():
 
         output_video_clip_file="{}\\{}".format(output_folder,self.name.replace('.mp4','_analized.mp4'))
           
-        print(output_video_clip_file)
         out = cv2.VideoWriter(output_video_clip_file,
                             cv2.VideoWriter_fourcc(*'mp4v'), 30,
                             (1920, 1080))
-
         
         for frame_number in range(self.frames_amount-1):
 
-            print(frame_number)
-
             self.cap.set(1,frame_number)
-            res, image = self.cap.read()
+            _, image = self.cap.read()
     
             self.frames[frame_number].draw_skeleton_right_side(image)
 
             self.draw_charts(image, frame_number)
         
             out.write(image)  #writing the video frame
-
-
-
-
-# class OrginalVideoProperitier():
-#     def __init__(self,vid_path):
-#         self.metadata=FFProbe(vid_path)
-
-#         # for stream in self.metadata.streams:
-#         #     if stream.is_video():
-#         #         print('Stream contains {} frames.'.format(stream.frames()))
-#         self.height=self.metadata.streams[0].height
-#         self.width=self.metadata.streams[0].width
+        
+        print(f'{self.name} gotowe.')
