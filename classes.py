@@ -29,18 +29,27 @@ class Point():
 class Frame():
     def __init__(self, frame_count, frame_time, kpts, frame_offsets):
 
-        self.frame_count        = frame_count
-        self.frame_time         = frame_time
-        self.kpts               = kpts
-        self.detected           = kpts!=[]
-        self.skeleton_points    = {}
-        self.angs               = {}
-        self.trace_point        = None
-        self.center_of_gravity  = None
-        self.stack_reach_len    = None
-        self.frame_offsets      = frame_offsets
-        self.left_ofset         = -1 * self.frame_offsets[0]
-        self.top_offset         = -1 * self.frame_offsets[1]
+        self.frame_count            = frame_count
+        self.frame_time             = frame_time
+        self.kpts                   = kpts
+        self.detected               = kpts!=[]
+        self.skeleton_points        = {}
+        self.angs                   = {}
+        self.trace_point            = None
+        self.center_of_gravity      = None
+        self.center_of_bar          = None
+        self.stack_reach_len        = None
+        self.stack_reach_ang        = None
+
+        # real bike geometry
+        self.bike_stack_reach_len   = 0.7   #wprowadzić pomiar albo dopasować
+        self.bike_stack_reach_ang   = 60    #wprowadzić pomiar albo dopasować
+        self.bike_chain_stay        = 420   #wprowadzić pomiar albo dopasować
+        self.bike_wheel_base        = 1220  #wprowadzić pomiar albo dopasować
+
+        self.frame_offsets          = frame_offsets
+        self.left_ofset             = -1 * self.frame_offsets[0]
+        self.top_offset             = -1 * self.frame_offsets[1]
 
         self.update_data_if_detected()
 
@@ -50,7 +59,10 @@ class Frame():
             self.calc_ang()
             self.trace_point=self.get_mid(16,17)
             self.center_of_gravity=self.get_mid(12,13)
-            self.stack_reach_len=self.get_dist(self.trace_point,self.center_of_gravity)
+            self.center_of_bar=self.get_mid(10,11)
+
+            self.stack_reach_len=self.get_dist(self.trace_point,self.center_of_bar)
+            self.stack_reach_ang=self.stack_reach_ang_calc(self.trace_point,self.center_of_bar)
 
     def get_mid(self,sk_id_1,sk_id_2):
         # zwraca punkt środkowy między dwoma punktami
@@ -61,7 +73,7 @@ class Frame():
         return (pos_x_2+pos_x_1)//2,(pos_y_2+pos_y_1)//2
     
     def get_dist(self,pkt_1, pkt_2):
-        # zwraca dystans między dwomoa punktami
+        # zwraca dystans między dwoma punktami
         pos_x_1, pos_y_1= pkt_1
         pos_x_2, pos_y_2= pkt_2
 
@@ -180,6 +192,36 @@ class Frame():
 
             self.angs[name]=ang_to_add
 
+    def stack_reach_ang_calc(self, trace_point, center_of_bar):
+            
+            # pomiar kąta względem poziomu - przeciwnie do wskazówek zegara
+            # tworzenie wektorów:
+
+            u=( center_of_bar[0]-trace_point[0],    
+                center_of_bar[1]-trace_point[1],)       
+            v=( 1,    
+                0)   
+             
+            ang_to_add=angle_between_vectors(u, v)[1]
+    
+            return ang_to_add
+
+    def draw_wheelbase_line(self):
+            # def rotate(origin, point, angle):
+            #     """
+            #     Rotate a point counterclockwise by a given angle around a given origin.
+
+            #     The angle should be given in radians.
+            #     """
+            #     ox, oy = origin.x, origin.y
+            #     px, py = point.x, point.y
+
+            #     qx = ox + math.cos(angle) * (px - ox) - math.sin(angle) * (py - oy)
+            #     qy = oy + math.sin(angle) * (px - ox) + math.cos(angle) * (py - oy)
+            # return Point(qx, qy)
+        pass
+
+
 class Clip():
     def __init__(self,vid_name):
         self.name=vid_name
@@ -204,6 +246,9 @@ class Clip():
         # dane do wykresów i linii
         self.charts={}
         self.generate_data_charts()
+        self.generate_data_stack_reach_len()
+        self.generate_data_stack_reach_ang()
+
 
         self.lines={}
         self.generate_data_lines()
@@ -215,18 +260,19 @@ class Clip():
         self.draw_background=True
         self.draw_leading_line=True
         
-        self.charts_state={'right_knee_chart':[True,(90,180),True],
-                            'left_knee_chart':[False,(90,180),True],
-                            'right_hip_chart':[True,(90,180),True],
-                            'left_hip_chart':[False,(90,180),True],
-                            'right_elbow_chart':[True,(90,180),True],
-                            'left_elbow_chart':[False,(90,180),True]}
-        
+        self.charts_state={'right_knee_chart':  [False,(90,180),True],
+                            'left_knee_chart':  [False,(90,180),True],
+                            'right_hip_chart':  [False,(90,180),True],
+                            'left_hip_chart':   [False,(90,180),True],
+                            'right_elbow_chart':[False,(90,180),True],
+                            'left_elbow_chart': [False,(90,180),True],
+                            'stack_reach_len':  [True,(50,120),False],
+                            'stack_reach_ang':  [True,(0,90),True]}
+                                    
         # ustawienia rysowania linii
-        self.lines_state={'trace_chart':False,
-                    'center_of_gravity_chart':False}
+        self.lines_state={  'trace_line':False,
+                            'center_of_gravity_line':False}
         
-
     def calc_frame_offset(self):
 
         self.cap.set(0,1)
@@ -234,11 +280,6 @@ class Clip():
         frame_width = int(self.cap.get(3))
 
         self.left_ofset, self.top_offset= letterbox_calc(img, (frame_width), stride=64, auto=True)
-
-        print(self.left_ofset)
-
-        print(self.top_offset)
-
     
     def add_frames(self):
 
@@ -261,12 +302,12 @@ class Clip():
     def generate_data_charts(self):
 
         # kąty zgięcia łokci, kolan i bioder    
-        self.charts={'right_knee_chart':{'name':'prawe kolano [st.]'},
-                        'left_knee_chart':{'name':'lewe kolano [st.]'},
-                        'right_hip_chart':{'name':'prawe biodro [st.]'},
-                        'left_hip_chart':{'name':'lewe biodro [st.]'},
-                        'right_elbow_chart':{'name':'prawy łokieć [st.]'},
-                        'left_elbow_chart':{'name':'lewy łokieć [st.]'}}
+        self.charts={   'right_knee_chart': {'name' : 'prawe kolano [st.]'},
+                        'left_knee_chart':  {'name' : 'lewe kolano [st.]'},
+                        'right_hip_chart':  {'name' : 'prawe biodro [st.]'},
+                        'left_hip_chart':   {'name' : 'lewe biodro [st.]'},
+                        'right_elbow_chart':{'name' : 'prawy łokieć [st.]'},
+                        'left_elbow_chart': {'name' : 'lewy łokieć [st.]'}}
         
         for charts in self.charts.keys():
             for frame,frame_obj in self.frames.items():
@@ -274,23 +315,50 @@ class Clip():
                     self.charts[charts][frame]=[frame_obj.skeleton_points[17].x_disp,int(frame_obj.angs[charts[:-6]])]
                 else:
                     self.charts[charts][frame]=None
-                    
+
+    def generate_data_stack_reach_len(self):
+        # wykres pomocniczy do sprawdzania czy video i rozpoznanie pozwala na ustalenie pozycji roweru. Mierzy odległość kostka-ręka 17-13
+
+            self.charts['stack_reach_len']={'name' : 'reach_stack_len [m]'}
+
+            for frame,frame_obj in self.frames.items():
+                if frame_obj.detected and frame_obj.stack_reach_len!=None:
+                    self.charts['stack_reach_len'][frame]=[frame_obj.skeleton_points[17].x_disp,
+                                                             int(frame_obj.stack_reach_len)]
+                else:
+                    self.charts['stack_reach_len'][frame]=None
+
+    def generate_data_stack_reach_ang(self):
+        # wykres pomocniczy do sprawdzania czy video i rozpoznanie pozwala na ustalenie pozycji roweru. Mierzy kat pochynia lini kostka-ręka 17-13
+
+            self.charts['stack_reach_ang']={'name' : 'reach_stack_ang [st.]'}
+
+            for frame,frame_obj in self.frames.items():
+                if frame_obj.detected and frame_obj.stack_reach_ang!=None:
+                    self.charts['stack_reach_ang'][frame]=[frame_obj.skeleton_points[17].x_disp,
+                                                             int(frame_obj.stack_reach_ang)]
+                else:
+                    self.charts['stack_reach_ang'][frame]=None
+        
+                   
     def generate_data_lines(self):
         # linie trasy (wg punktu kostki 17 i 16) i środka ciężkości (biodro 13 i 12)
-        self.lines['trace_chart']={'name':'linia trasy'}
-        self.lines['center_of_gravity_chart']={'name':'linia środka ciężkości'}
+        self.lines['trace_line']={'name':'linia trasy'}
+        self.lines['center_of_gravity_line']={'name':'linia środka ciężkości'}
 
         for frame,frame_obj in self.frames.items():
             if frame_obj.detected:
-                self.lines['trace_chart'][frame]=[frame_obj.skeleton_points[17].x_disp,frame_obj.skeleton_points[17].y_disp]
+                self.lines['trace_line'][frame]=[frame_obj.skeleton_points[17].x_disp,
+                                                 int(frame_obj.trace_point[1])]
             else:
-                self.charts['trace_chart'][frame]=None
+                self.lines['trace_line'][frame]=None
 
         for frame,frame_obj in self.frames.items():
             if frame_obj.detected:
-                self.lines['center_of_gravity_chart'][frame]=[frame_obj.skeleton_points[17].x_disp,frame_obj.skeleton_points[13].y_disp]
+                self.lines['center_of_gravity_line'][frame]=[frame_obj.skeleton_points[17].x_disp,
+                                                             int(frame_obj.center_of_gravity[1])]
             else:
-                self.charts['center_of_gravity_chart'][frame]=None
+                self.lines['center_of_gravity_line'][frame]=None
 
     def draw_charts(self,image, frame_number):
        
@@ -341,7 +409,7 @@ class Clip():
     def draw_trace(self,image,frame_number):
         # zebranie danych do rysowania lini wykresu
         # pobranie danych
-        data_to_draw=self.lines['trace_chart']
+        data_to_draw=self.lines['trace_line']
         lines_to_draw=[]
 
         frames=sorted(i for i in data_to_draw.keys() if type(i)==int)
@@ -349,14 +417,14 @@ class Clip():
         tmp_store=[]
         for frame in frames[1:]:
 
-            pos_1=self.lines['trace_chart'][frame-1]
-            pos_2=self.lines['trace_chart'][frame]
+            pos_1=self.lines['trace_line'][frame-1]
+            pos_2=self.lines['trace_line'][frame]
 
             # jeśli dane dla obu klatek występują to:
             if all((pos_1,pos_2)):
 
-                pos_1=self.lines['trace_chart'][frame-1][0]
-                pos_2=self.lines['trace_chart'][frame][0]
+                pos_1=self.lines['trace_line'][frame-1]
+                pos_2=self.lines['trace_line'][frame]
 
                 tmp_store.append((pos_1,pos_2))
 
@@ -364,7 +432,35 @@ class Clip():
 
         # rysowanie linii trasy
         for line_to_draw in lines_to_draw:
-            self.draw_line(image, line_to_draw, color=(255, 128, 0))
+            self.draw_line(image, line_to_draw, color=(137, 126, 23))
+
+
+        data_to_draw=self.lines['center_of_gravity_line']
+        lines_to_draw=[]
+
+        frames=sorted(i for i in data_to_draw.keys() if type(i)==int)
+
+        tmp_store=[]
+        for frame in frames[1:]:
+
+            pos_1=self.lines['center_of_gravity_line'][frame-1]
+            pos_2=self.lines['center_of_gravity_line'][frame]
+
+            # jeśli dane dla obu klatek występują to:
+            if all((pos_1,pos_2)):
+
+                pos_1=self.lines['center_of_gravity_line'][frame-1]
+                pos_2=self.lines['center_of_gravity_line'][frame]
+
+                tmp_store.append((pos_1,pos_2))
+
+        lines_to_draw.append(tmp_store)
+
+        # rysowanie linii środka cieżkości
+        # na razie nie rysuje - do analizy czy nie lepiej pokazać rzeczywistą odległość kostka- biodro, zamiast odległosci w pionie, bo na wykresie myli
+        # for line_to_draw in lines_to_draw:
+        #     self.draw_line(image, line_to_draw, color=(20, 126, 23))
+
 
     def draw_line(self, image, line_to_draw, color=(0, 0, 0), thickness=3):
         # rysowanie wykresu
@@ -419,16 +515,21 @@ class Clip():
         fontScale = 0.8
         text_color=(0,0,0)
         thickness = 2
-        text=unidecode(self.charts[chart_name]['name']) # - do zmiany tak żeby się wyświetlały polskie znaki
-        lok_opis_wykresu=(20,background_delta_y_1+25)
-        
+        try:
+            text=unidecode(self.charts[chart_name]['name']) # - do zmiany tak żeby się wyświetlały polskie znaki
+            lok_opis_wykresu=(20,background_delta_y_1+25)
+        except:
+            pass
         cv2.putText(image, text, lok_opis_wykresu, font, fontScale, text_color, thickness)
 
         # opisy, tylko jeśli na ekranie jest wykryty szkielet
         if self.frames[frame_number].detected:
             # wartość
 
-            lok_opis_wykresu=(self.charts[chart_name][frame_number][0]+20, background_delta_y_1+25)
+            try:
+                lok_opis_wykresu=(self.charts[chart_name][frame_number][0]+20, background_delta_y_1+25)
+            except:
+                text='x'
             text=str(self.charts[chart_name][frame_number][1])
             cv2.putText(image, text, lok_opis_wykresu, font, fontScale, text_color, thickness)
 
@@ -442,8 +543,6 @@ class Clip():
 
                 cv2.line(image, pos_1, pos_2, leading_line_color, thickness=2)
 
-
-
     def display_frame(self,frame_number):
 
         self.cap.set(1,frame_number)
@@ -454,7 +553,7 @@ class Clip():
 
         self.draw_charts(image, frame_number)
         
-        self.draw_trace(image,frame_number)
+        self.draw_trace(image, frame_number)
 
         image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB) #convert frame to RGB
 

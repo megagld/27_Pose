@@ -93,7 +93,7 @@ class Frame_right(tk.Frame):
     def update_view(self,x) -> None:
         self.master.frame_to_display=int(float(x))
         self.canvas.open_image()
-        print(x)
+        # print(x)
 
     def print_size(self) -> None:       
         self.width = self.winfo_width()
@@ -210,7 +210,7 @@ class Window(tk.Tk):
 
         self.play=False
 
-        self.filename='test.mp4'
+        self.filename='PXL_20241218_140154060_011.mp4'
         self.frame_to_display=20
 
         self.clip=classes.Clip(self.filename)
