@@ -210,7 +210,7 @@ class Window(tk.Tk):
 
         self.play=False
 
-        self.filename='test.mp4'
+        self.filename='PXL_20241218_121042417_000.mp4'
         self.frame_to_display=20
 
         self.clip=classes.Clip(self.filename)

@@ -8,7 +8,6 @@ from PIL import Image, ImageTk
 from ffprobe import FFProbe
 from general_bm import letterbox_calc
 
-
 def angle_between_vectors(u, v):
     dot_product = sum(i * j for i, j in zip(u, v))
     norm_u = math.sqrt(sum(i**2 for i in u))
@@ -354,14 +353,47 @@ class Frame:
 
         # rysuje koła na końcu bazy kół
 
-        cv2.circle(image, center_of_back_wheel.disp, int(self.bike_wheel_size/2*size_factor), (0,0,0), thickness=2)
-        cv2.circle(image, center_of_front_wheel.disp, int(self.bike_wheel_size/2*size_factor), (0,0,0), thickness=2)
+        # cv2.circle(image, center_of_back_wheel.disp, int(self.bike_wheel_size/2*size_factor), (0,0,0), thickness=2)
+        # cv2.circle(image, center_of_front_wheel.disp, int(self.bike_wheel_size/2*size_factor), (0,0,0), thickness=2)
 
 
-        cv2.line(image, (0,0), central_point.disp, (0,0,0), thickness=2)
-        
+        # cv2.line(image, (0,0), central_point.disp, (0,0,0), thickness=2)
 
+    def draw_side_view(self,image):
 
+        # https://stackoverflow.com/questions/73130538/efficiently-rotate-image-and-paste-into-a-larger-image-using-numpy-and-opencv/
+        # https://stackoverflow.com/questions/61516526/how-to-use-opencv-to-crop-circular-image
+        # https://stackoverflow.com/questions/75554603/how-to-insert-a-picture-in-a-circle-using-opencv
+
+        if self.detected:
+            # określenie zakresu do wyświetlenia
+            wielkosc_wycinka=200
+            pose_y_cor = 0
+            
+            x, y, w, h = (
+                int(self.trace_point.x-wielkosc_wycinka),
+                int(self.trace_point.y-pose_y_cor-wielkosc_wycinka),
+                wielkosc_wycinka*2,
+                wielkosc_wycinka*2,
+            )
+            sub_img = image[y : y + h, x : x + w]
+            white_rect = np.ones(sub_img.shape, dtype=np.uint8) * 255
+
+            # res = cv2.addWeighted(sub_img, 0.5, white_rect, 0.5, 1.0)
+            res = cv2.addWeighted(sub_img, 1, white_rect, 0, 1.0)
+
+            bike_rotation = self.bike_stack_reach_ang - self.stack_reach_ang
+
+            rot_res = cv2.getRotationMatrix2D((wielkosc_wycinka,wielkosc_wycinka), bike_rotation, 1)
+
+            img_rot = cv2.warpAffine(res,rot_res,(2*wielkosc_wycinka,2*wielkosc_wycinka))
+
+            # wklejenie zdjęcia na boku
+
+            x_place = image.shape[1]-2*wielkosc_wycinka
+            y_place = 0
+
+            image[y_place : y_place + h, x_place : x_place + w] = img_rot
 
 class Clip:
     def __init__(self, vid_name):
@@ -397,8 +429,9 @@ class Clip:
         self.chart_y_pos = 750
         self.chart_height = 90
 
-        self.draw_background = True
-        self.draw_leading_line = True
+        self.draw_background        = True
+        self.draw_leading_line      = True
+        self.draw_side_view_state   = True
 
         self.charts_state = {
             "right_knee_chart": [True, (90, 180), True],
@@ -741,11 +774,13 @@ class Clip:
 
         self.frames[frame_number].draw_skeleton_right_side(image)
 
-        self.draw_charts(image, frame_number)
+        self.frames[frame_number].draw_wheelbase_line(image)
+
+        self.frames[frame_number].draw_side_view(image)
 
         self.draw_trace(image, frame_number)
 
-        self.frames[frame_number].draw_wheelbase_line(image)
+        self.draw_charts(image, frame_number)
 
         image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)  # convert frame to RGB
 
