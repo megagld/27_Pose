@@ -812,3 +812,97 @@ class Clip:
             out.write(image)  # writing the video frame
 
         print(f"{self.name} gotowe.")
+
+class Draws_states:
+    # ustala co ma być wyświetlane
+    def __init__(self):
+
+        #główna klatka
+        self.main_frame_draw_state                      = True
+        self.main_frame_background_draw_state           = True
+
+        # szkielet
+        self.main_skeleton_draw_state                   = False
+        self.main_skeleton_right_draw_state             = True
+        self.main_skeleton_left_draw_state              = False
+
+        # wykresy
+        # kąty zgięcia
+        self.right_knee_ang_chart_draw_state            = True
+        self.right_hip_ang_chart_draw_state             = True
+        self.right_elbow_ang_chart_draw_state           = True
+        self.left_knee_ang_chart_draw_state             = False
+        self.left_hip_ang_chart_draw_state              = False
+        self.left_elbow_ang_chart_draw_state            = False
+
+        # inne
+        self.stack_reach_len_chart_draw_state           = False
+        self.stack_reach_ang_chart_draw_state           = False
+        self.speed_chart_draw_state                     = False
+
+        # tło wykresów
+        self.charts_background_draw_state               = True
+
+        # opisy wykresów
+        self.charts_descriptions_draw_state             = True
+
+        # linia wiodąca pionowa, pomocnicza
+        self.leading_line_draw_state                    = True
+
+        # linie na głównej klatce
+        self.trace_line_draw_state                      = True
+        self.center_of_gravity_line_draw_state          = False
+
+        #################################################
+        # boczny widok - wycięta klatka
+        self.side_frame_draw_state                      = True
+        self.side_frame_background_draw_state           = True
+
+        # szkielet na bocznym widoku
+        self.side_skeleton_draw_state                   = False
+        self.side_skeleton_right_draw_state             = True
+        self.side_skeleton_left_draw_state              = False   
+
+        # linia bazy kół na bocznym widoku
+        self.side_wheel_base_line_draw_state            = True
+
+        # pionowa linia wiodąca - głowa
+        self.side_head_leading_line_draw_state          = True
+
+        #################################################
+        # pozycje do wyświetlenia jako checkboxy
+        self.checkboxes = ['',
+            'main_frame_draw_state',
+            'main_frame_background_draw_state',
+            '',
+            'main_skeleton_draw_state',
+            'main_skeleton_right_draw_state',
+            'main_skeleton_left_draw_state',
+            '',
+            'right_knee_ang_chart_draw_state',
+            'right_hip_ang_chart_draw_state',
+            'right_elbow_ang_chart_draw_state',
+            'left_knee_ang_chart_draw_state',
+            'left_hip_ang_chart_draw_state',
+            'left_elbow_ang_chart_draw_state',
+            '',
+            'stack_reach_len_chart_draw_state',
+            'stack_reach_ang_chart_draw_state',
+            'speed_chart_draw_state',
+            '',
+            'charts_background_draw_state',
+            'charts_descriptions_draw_state',
+            'leading_line_draw_state',
+            '',
+            'trace_line_draw_state',
+            'center_of_gravity_line_draw_state',
+            '',
+            'side_frame_draw_state',
+            'side_frame_background_draw_state',
+            '',
+            'side_skeleton_draw_state',
+            'side_skeleton_right_draw_state',
+            'side_skeleton_left_draw_state',
+            '',
+            'side_wheel_base_line_draw_state',
+            'side_head_leading_line_draw_state']

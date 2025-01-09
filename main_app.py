@@ -114,94 +114,52 @@ class Frame_right(tk.Frame):
         self.canvas.open_image()
         self.scale.set(self.master.frame_to_display)
 
-    def play_stop(self):
-
-        self.master.play=not self.master.play
-
-        print(self.master.play)
-
-        self.play_video()
-
-    def play_video(self):
-        # if self.play == True:
-        #     # while True:
-        #     self.master.frame_to_display+=1
-        #     self.master.frame_to_display%=(self.master.clip.frames_amount-20)
-        #         # print(self.master.frame_to_display)
-        #         # self.canvas.open_image()
-        #     print(self.master.frame_to_display)
-        # else:
-        #     pass
-        pass
-
     def make_clip(self):
         self.master.clip.make_video_clip()
-
 
 class Frame_left(tk.Frame):
     def __init__(self, master: tk.Tk, **kwargs):
         super().__init__(master, **kwargs)
 
-        # tk.Button(self, text='frame size', comman=self.print_size).pack(expand=False, fill='both', padx=10, pady=10)
         self.create_widgets()
 
-    def print_size(self) -> None:
-        self.width = self.winfo_width()
-        self.height = self.winfo_height()
-        print('x'*10)
-        print('self.size :'+str(self.width)+"x"+str(self.height))
-        print('x'*12)
+    def create_widgets(self): 
 
-    def create_widgets(self):
-        
-        #set labels
-        texts=['',
-                'Wykresy:',
-                'zgięcie prawego kolana',
-                'zgięcie prawego biodra',
-                'zgięcie prawego łokcia',
-                '',
-                'zgięcię lewego kolana',
-                'zgięcie lewego biodra',
-                'zgięcie lewego łokcia']
-        
-        self.texts_state={}
+        # zmienna robocza do wyświetlenia teksów i wygenerowania checkboxów w lewej ramce
+        checkboxes=self.master.draws_states.checkboxes
 
-        for i,j in enumerate(texts):
-            label = ttk.Label(self, text=j,font=('helvetica', 10))
+        # słownik z obiektami "checkbox" lewej ramki. Nie jest tym samym co obiekt self.master.draws_states !!!!
+        self.left_frame_checkboxes = {}
+       
+        # tekst do wyświetlenia - Labels
+
+        for i,j in enumerate(checkboxes):
+            # dostososowuje nazwę do wyświetlenia
+            text_to_display = j.replace('_draw_state', '').replace('_', ' ').capitalize()
+
+            # wyświetla label
+            label = ttk.Label(self, text=text_to_display,font=('helvetica', 10))
+
             label.grid(column=0, row=i, sticky=tk.W, padx=15)
-            self.texts_state[i]=label
 
-        # set entry
-        entrys=['',
-                '',
-                'checkbox',
-                'checkbox',
-                'checkbox',
-                '',
-                'checkbox',
-                'checkbox',
-                'checkbox']
-        
-        self.entry_state={}
+        # rysowanie checkboxów i ustalanie ich stanu
+       
+        for i,j in enumerate(checkboxes):
+            if j!='':
+                entry=tk.Checkbutton(self, command=self.update_state)
+                # pobiera stan z obiektu draws_states i ustala go na checkboxie
+                if getattr(self.master.draws_states, j) == True:
+                    entry.select()
 
-        for i,j in enumerate(entrys):
-            if j=='':
-                entry = ttk.Label(self, text=j,font=('helvetica', 10))
-                entry.grid(column=0, row=i, sticky=tk.E, padx=5)
-            elif j=='checkbox':
-                self.var = tk.IntVar(value=0)
-                entry=tk.Checkbutton(self,variable=self.var)
-            elif j=='button':
-                entry=tk.Button(text='Oznacz pdfy', command=self.run, bg='brown', fg='white', font=('helvetica', 10, 'bold'),width=16)
-            elif j=='progresbar':
-                entry=ttk.Progressbar(self, orient='horizontal',mode='determinate', length=140)
-            else:
-                entry = ttk.Entry(self,textvariable=j,width=30)
-                entry.insert(-1, j)
+                entry.grid(column=1, row=i, sticky=tk.E, padx=5)
 
-            entry.grid(column=1, row=i, sticky=tk.E, padx=5)
-            self.entry_state[i]=entry
+                # dodanie checkboxa do słownika 
+                self.left_frame_checkboxes[j] = entry
+
+    def update_state(self):
+        for i,j in self.left_frame_checkboxes.items():
+            pass
+            # print(f'{i}      {j.get()}')
 
 class Window(tk.Tk):
     def __init__(self, **kwargs):
@@ -214,27 +172,16 @@ class Window(tk.Tk):
         self.frame_to_display=20
 
         self.clip=classes.Clip(self.filename)
+        
+        # twórz obiekt ze stanem pozycji do wyświetlenia
+
+        self.draws_states = classes.Draws_states()
 
         # twórz okno
 
         self.minsize(800, 600)
         self.frame_1 = Frame_left(self).pack(side='left', fill='both', expand=False)
         self.frame_2 = Frame_right(self).pack(side='right', fill='both', expand=True)
-
-        self.delay = 30
-        if self.play==True:
-            self.frame_to_display+=1
-            print(self.frame_to_display)
-        if self.frame_2:
-            self.update()
-            print('update')
-        
-    
-    def update(self):
-        self.frame_2.canvas.open_image()
-        self.after(self.delay, self.update)
-        pass
-
 
 if __name__ == '__main__':
     window = Window()
