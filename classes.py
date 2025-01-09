@@ -766,13 +766,20 @@ class Clip:
 
                 cv2.line(image, pos_1, pos_2, leading_line_color, thickness=2)
 
-    def display_frame(self, frame_number):
+    def display_frame(self, frame_number, draws_states):
 
         self.cap.set(1, frame_number)
 
         _, image = self.cap.read()
 
-        self.frames[frame_number].draw_skeleton_right_side(image)
+        if draws_states.main_skeleton_right_draw_state:
+            self.frames[frame_number].draw_skeleton_right_side(image)
+
+        if draws_states.main_skeleton_left_draw_state:
+            self.frames[frame_number].draw_skeleton_left_side(image)
+            
+        if draws_states.main_skeleton_draw_state:
+            self.frames[frame_number].draw_skeleton(image)
 
         self.frames[frame_number].draw_wheelbase_line(image)
 
@@ -910,5 +917,3 @@ class Frame_widgets:
                             '',
                             'side_wheel_base_line_draw_state',
                             'side_head_leading_line_draw_state']
-  
-        self.checkboxes =   {}

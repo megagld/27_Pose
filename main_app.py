@@ -59,7 +59,8 @@ class CanvasImage(tk.Canvas):
 
         self.delete_previous_image()
 
-        self.master.master.clip.display_frame(self.master.master.frame_to_display)
+        self.master.master.clip.display_frame(self.master.master.frame_to_display,
+                                              self.master.master.draws_states)
         self.source_image = self.master.master.clip.image
 
         self.image = ImageTk.PhotoImage(self.source_image)
@@ -94,7 +95,6 @@ class Frame_right(tk.Frame):
     def update_view(self,x) -> None:
         self.master.frame_to_display=int(float(x))
         self.canvas.open_image()
-        # print(x)
 
     def print_size(self) -> None:       
         self.width = self.winfo_width()
@@ -102,6 +102,8 @@ class Frame_right(tk.Frame):
         print('x'*10)
         print('self.size :'+str(self.width)+"x"+str(self.height))
         print('x'*12)
+        print('ttttttttttttttttt')
+        print(self.master.draws_states.main_frame_draw_state)
 
     def frame_cnt_forward(self):
         self.master.frame_to_display+=1
@@ -130,32 +132,26 @@ class Frame_left(tk.Frame):
         self.left_frame_widgets     = classes.Frame_widgets()
         self.labels                 = self.left_frame_widgets.labels_to_display
 
-        self.checkboxes             = {}
         self.checkboxes_variables   = {}
-
-        # styl checkboxów
-
-        tb.Style().configure('Roundtoggle.Toolbutton', font=('Helvetica', 1s6))
 
         # rysowanie checkboxów z opisami. Checkboxy powstają na podstawie 
         # labeli i są zestawiane na podstawie ich tekstu. Key = tekst labela
        
-        for i,j in enumerate(self.labels):
-            # dostososowuje nazwę do wyświetlenia
-            text_to_display = j.replace('_draw_state', '').replace('_', ' ').capitalize()
+        for label in self.labels:
+            # dostosowuje nazwę do wyświetlenia
+            text_to_display = label.replace('_draw_state', '').replace('_', ' ').capitalize()
 
-            if j!='':
-                self.checkboxes_variables[j]  = tk.IntVar()
-                self.checkboxes[j]=tb.Checkbutton(self, 
-                                                   text=text_to_display,
-                                                   bootstyle="success, round-toggle",
-                                                   variable = self.checkboxes_variables[j], 
-                                                   command=self.update_draws_states)
-
-                self.checkboxes[j].grid(column=0, row=i, sticky=tk.W, padx=15)
+            if label!='':
+                self.checkboxes_variables[label]  = tk.IntVar()
+                ttk.Checkbutton(self, 
+                                text=text_to_display,
+                                bootstyle="success, round-toggle",
+                                variable = self.checkboxes_variables[label], 
+                                command=self.update_draws_states).pack(side='top',
+                                                                        anchor='nw',
+                                                                            padx=10)
             else:
-                label = tb.Label(self, text=text_to_display)
-                label.grid(column=0, row=i, sticky=tk.W, padx=15)
+                ttk.Label(self, text=text_to_display).pack()
 
         # ustalanie ich stanu checkboxów
         self.update_checkboxes_states()
@@ -163,20 +159,25 @@ class Frame_left(tk.Frame):
     def update_checkboxes_states(self):
         # zaznacza checkboxy wg stanu z draw_states
         for checkbox_name, checkbox_variable in self.checkboxes_variables.items():
-            if getattr(self.master.draws_states, checkbox_name) == True:
-                checkbox_variable.set(1)
-            else:
-                # checkbox.state(['!alternate'])
-                pass
+            checkbox_variable.set(getattr(self.master.draws_states, checkbox_name))
 
     def update_draws_states(self):
-        # aktualizuje obiekt draws_states
+        # aktualizuje obiekt draws_states wg stanu checkboksów i przeładowuje wyświetlaną klatkę
         for checkbox_name, checkbox_variable in self.checkboxes_variables.items():
             setattr(self.master.draws_states, checkbox_name, checkbox_variable.get())
+        
+        # przeładowuje wyświetlaną klatkę
+
+        # self.master.frame_2.canvas.open_image()
 
 class Window(tk.Tk):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
+
+        # ustala styl widgetów
+
+        tb.Style().configure('Roundtoggle.Toolbutton', font=('Helvetica', 16))
+
         # twórz obiekt clipu
 
         self.play=False
@@ -193,8 +194,10 @@ class Window(tk.Tk):
         # twórz okno
 
         self.minsize(800, 600)
+        
         self.frame_1 = Frame_left(self).pack(side='left', fill='both', expand=False)
         self.frame_2 = Frame_right(self).pack(side='right', fill='both', expand=True)
+
 
 if __name__ == '__main__':
     window = Window()
