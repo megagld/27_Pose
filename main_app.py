@@ -1,6 +1,7 @@
 import PIL.Image
 import tkinter as tk
 from tkinter import ttk
+import ttkbootstrap as tb
 from PIL import ImageTk
 import classes
 
@@ -125,41 +126,53 @@ class Frame_left(tk.Frame):
 
     def create_widgets(self): 
 
-        # zmienna robocza do wyświetlenia teksów i wygenerowania checkboxów w lewej ramce
-        checkboxes=self.master.draws_states.checkboxes
+        # obiekt zestawiający dane z lewej ramki - teksty do wyświetlenia i checkboxy oraz ich stan
+        self.left_frame_widgets     = classes.Frame_widgets()
+        self.labels                 = self.left_frame_widgets.labels_to_display
 
-        # słownik z obiektami "checkbox" lewej ramki. Nie jest tym samym co obiekt self.master.draws_states !!!!
-        self.left_frame_checkboxes = {}
+        self.checkboxes             = {}
+        self.checkboxes_variables   = {}
+
+        # styl checkboxów
+
+        tb.Style().configure('Roundtoggle.Toolbutton', font=('Helvetica', 1s6))
+
+        # rysowanie checkboxów z opisami. Checkboxy powstają na podstawie 
+        # labeli i są zestawiane na podstawie ich tekstu. Key = tekst labela
        
-        # tekst do wyświetlenia - Labels
-
-        for i,j in enumerate(checkboxes):
+        for i,j in enumerate(self.labels):
             # dostososowuje nazwę do wyświetlenia
             text_to_display = j.replace('_draw_state', '').replace('_', ' ').capitalize()
 
-            # wyświetla label
-            label = ttk.Label(self, text=text_to_display,font=('helvetica', 10))
-
-            label.grid(column=0, row=i, sticky=tk.W, padx=15)
-
-        # rysowanie checkboxów i ustalanie ich stanu
-       
-        for i,j in enumerate(checkboxes):
             if j!='':
-                entry=tk.Checkbutton(self, command=self.update_state)
-                # pobiera stan z obiektu draws_states i ustala go na checkboxie
-                if getattr(self.master.draws_states, j) == True:
-                    entry.select()
+                self.checkboxes_variables[j]  = tk.IntVar()
+                self.checkboxes[j]=tb.Checkbutton(self, 
+                                                   text=text_to_display,
+                                                   bootstyle="success, round-toggle",
+                                                   variable = self.checkboxes_variables[j], 
+                                                   command=self.update_draws_states)
 
-                entry.grid(column=1, row=i, sticky=tk.E, padx=5)
+                self.checkboxes[j].grid(column=0, row=i, sticky=tk.W, padx=15)
+            else:
+                label = tb.Label(self, text=text_to_display)
+                label.grid(column=0, row=i, sticky=tk.W, padx=15)
 
-                # dodanie checkboxa do słownika 
-                self.left_frame_checkboxes[j] = entry
+        # ustalanie ich stanu checkboxów
+        self.update_checkboxes_states()
 
-    def update_state(self):
-        for i,j in self.left_frame_checkboxes.items():
-            pass
-            # print(f'{i}      {j.get()}')
+    def update_checkboxes_states(self):
+        # zaznacza checkboxy wg stanu z draw_states
+        for checkbox_name, checkbox_variable in self.checkboxes_variables.items():
+            if getattr(self.master.draws_states, checkbox_name) == True:
+                checkbox_variable.set(1)
+            else:
+                # checkbox.state(['!alternate'])
+                pass
+
+    def update_draws_states(self):
+        # aktualizuje obiekt draws_states
+        for checkbox_name, checkbox_variable in self.checkboxes_variables.items():
+            setattr(self.master.draws_states, checkbox_name, checkbox_variable.get())
 
 class Window(tk.Tk):
     def __init__(self, **kwargs):
@@ -168,7 +181,7 @@ class Window(tk.Tk):
 
         self.play=False
 
-        self.filename='PXL_20241218_121042417_000.mp4'
+        self.filename='VID_20241214_134111_004.mp4'
         self.frame_to_display=20
 
         self.clip=classes.Clip(self.filename)

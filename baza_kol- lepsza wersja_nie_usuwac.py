@@ -8,6 +8,7 @@ from PIL import Image, ImageTk
 from ffprobe import FFProbe
 from general_bm import letterbox_calc
 
+
 def angle_between_vectors(u, v):
     dot_product = sum(i * j for i, j in zip(u, v))
     norm_u = math.sqrt(sum(i**2 for i in u))
@@ -70,6 +71,11 @@ class Frame:
         self.center_of_bar = None
         self.stack_reach_len = None
         self.stack_reach_ang = None
+
+        self.trace_point_before = None
+        self.trace_point_after = None
+
+        self.bike_rotation_ang = None
 
         # real bike geometry
         self.bike_reach_len       = 485
@@ -331,8 +337,8 @@ class Frame:
 
         return ang_to_add
 
-    def draw_wheelbase_line(self, image):
-
+    def draw_wheelbase_line_rs_(self, image):
+        # rysowanie linie bazy kół wg reach - stack - robocza
         size_factor=self.stack_reach_len/self.bike_stack_reach_len
 
         central_point           = self.trace_point
@@ -353,47 +359,47 @@ class Frame:
 
         # rysuje koła na końcu bazy kół
 
-        # cv2.circle(image, center_of_back_wheel.disp, int(self.bike_wheel_size/2*size_factor), (0,0,0), thickness=2)
-        # cv2.circle(image, center_of_front_wheel.disp, int(self.bike_wheel_size/2*size_factor), (0,0,0), thickness=2)
+        cv2.circle(image, center_of_back_wheel.disp, int(self.bike_wheel_size/2*size_factor), (0,0,0), thickness=2)
+        cv2.circle(image, center_of_front_wheel.disp, int(self.bike_wheel_size/2*size_factor), (0,0,0), thickness=2)
+
+        cv2.line(image, (0,0), central_point.disp, (0,0,0), thickness=2)
+        
+
+    def draw_wheelbase_line(self, image):
+
+        # rysowanie linii bazy kół wg lini trasy - wstępnie tak jakby rower był postawiony pionowo- żeby ułatwić obrót o wektor 0-180st
+        if self.bike_rotation_ang!=None:
+
+            size_factor=self.stack_reach_len/self.bike_stack_reach_len
+
+            central_point           = self.trace_point
+            center_of_back_wheel    = transform_point(central_point, 0 ,self.bike_chain_stay*size_factor)
+            center_of_front_wheel   = transform_point(central_point, 0 , (self.bike_chain_stay-self.bike_wheel_base)*size_factor)
+
+            # obrót punktów wg punktu bazowego
+            # wartość dodatnia oznacza obrót zgodnie z ruchem wskazówek zegara
+
+            center_of_back_wheel=rotate_point(central_point, center_of_back_wheel, math.radians(self.bike_rotation_ang))
+            center_of_front_wheel=rotate_point(central_point, center_of_front_wheel, math.radians(self.bike_rotation_ang))
+
+            # rysuj linie bazy kół
+
+            cv2.line(image, center_of_back_wheel.disp, center_of_front_wheel.disp, (0,0,0), thickness=2)
+            cv2.circle(image, center_of_back_wheel.disp, 30, (0,0,0), thickness=2)
 
 
-        # cv2.line(image, (0,0), central_point.disp, (0,0,0), thickness=2)
+    def calc_bike_rotation_ang(self):
+        # pomiar kąta względem pionu - przeciwnie do wskazówek zegara
+        # tworzenie wektorów:
+        u = (
+            self.trace_point_after.x    - self.trace_point_before.x,
+            self.trace_point_after.y    - self.trace_point_before.y,
+        )
+        v = (0, -1)
 
-    def draw_side_view(self,image):
+        ang_to_add = angle_between_vectors(u, v)[1]
 
-        # https://stackoverflow.com/questions/73130538/efficiently-rotate-image-and-paste-into-a-larger-image-using-numpy-and-opencv/
-        # https://stackoverflow.com/questions/61516526/how-to-use-opencv-to-crop-circular-image
-        # https://stackoverflow.com/questions/75554603/how-to-insert-a-picture-in-a-circle-using-opencv
-
-        if self.detected:
-            # określenie zakresu do wyświetlenia
-            wielkosc_wycinka=200
-            pose_y_cor = 0
-            
-            x, y, w, h = (
-                int(self.trace_point.x-wielkosc_wycinka),
-                int(self.trace_point.y-pose_y_cor-wielkosc_wycinka),
-                wielkosc_wycinka*2,
-                wielkosc_wycinka*2,
-            )
-            sub_img = image[y : y + h, x : x + w]
-            white_rect = np.ones(sub_img.shape, dtype=np.uint8) * 255
-
-            # res = cv2.addWeighted(sub_img, 0.5, white_rect, 0.5, 1.0)
-            res = cv2.addWeighted(sub_img, 1, white_rect, 0, 1.0)
-
-            bike_rotation = self.bike_stack_reach_ang - self.stack_reach_ang
-
-            rot_res = cv2.getRotationMatrix2D((wielkosc_wycinka,wielkosc_wycinka), bike_rotation, 1)
-
-            img_rot = cv2.warpAffine(res,rot_res,(2*wielkosc_wycinka,2*wielkosc_wycinka))
-
-            # wklejenie zdjęcia na boku
-
-            x_place = image.shape[1]-2*wielkosc_wycinka
-            y_place = 0
-
-            image[y_place : y_place + h, x_place : x_place + w] = img_rot
+        self.bike_rotation_ang = ang_to_add
 
 class Clip:
     def __init__(self, vid_name):
@@ -413,8 +419,10 @@ class Clip:
 
         self.frames = {}
         self.add_frames()
-
+        
         self.frames_amount = len(self.frames)
+
+        self.generate_frames_before_after_data()
 
         # dane do wykresów i linii
         self.charts = {}
@@ -429,9 +437,8 @@ class Clip:
         self.chart_y_pos = 750
         self.chart_height = 90
 
-        self.draw_background        = True
-        self.draw_leading_line      = True
-        self.draw_side_view_state   = True
+        self.draw_background = True
+        self.draw_leading_line = True
 
         self.charts_state = {
             "right_knee_chart": [True, (90, 180), True],
@@ -674,6 +681,16 @@ class Clip:
 
             cv2.line(image, pos_2, pos_1, color, thickness)
 
+    def generate_frames_before_after_data(self):
+        # uzupełnia dane o punkcie trasy przed i za konkretną klatką
+        for frame_number in range(2,self.frames_amount-3):
+            if self.frames[frame_number-2].detected and self.frames[frame_number+3].detected:
+                self.frames[frame_number].trace_point_before = self.frames[frame_number-2].trace_point
+                self.frames[frame_number].trace_point_after  = self.frames[frame_number+3].trace_point
+
+                self.frames[frame_number].calc_bike_rotation_ang()        
+     
+
     def draw_chart_base(
         self,
         image,
@@ -774,13 +791,11 @@ class Clip:
 
         self.frames[frame_number].draw_skeleton_right_side(image)
 
-        self.frames[frame_number].draw_wheelbase_line(image)
-
-        self.frames[frame_number].draw_side_view(image)
+        self.draw_charts(image, frame_number)
 
         self.draw_trace(image, frame_number)
 
-        self.draw_charts(image, frame_number)
+        self.frames[frame_number].draw_wheelbase_line(image)
 
         image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)  # convert frame to RGB
 
@@ -812,103 +827,3 @@ class Clip:
             out.write(image)  # writing the video frame
 
         print(f"{self.name} gotowe.")
-
-class Draws_states:
-    # ustala co ma być wyświetlane
-    def __init__(self):
-
-        #główna klatka
-        self.main_frame_draw_state                      = True
-        self.main_frame_background_draw_state           = True
-
-        # szkielet
-        self.main_skeleton_draw_state                   = False
-        self.main_skeleton_right_draw_state             = True
-        self.main_skeleton_left_draw_state              = False
-
-        # wykresy
-        # kąty zgięcia
-        self.right_knee_ang_chart_draw_state            = True
-        self.right_hip_ang_chart_draw_state             = True
-        self.right_elbow_ang_chart_draw_state           = True
-        self.left_knee_ang_chart_draw_state             = False
-        self.left_hip_ang_chart_draw_state              = False
-        self.left_elbow_ang_chart_draw_state            = False
-
-        # inne
-        self.stack_reach_len_chart_draw_state           = False
-        self.stack_reach_ang_chart_draw_state           = False
-        self.speed_chart_draw_state                     = False
-
-        # tło wykresów
-        self.charts_background_draw_state               = True
-
-        # opisy wykresów
-        self.charts_descriptions_draw_state             = True
-
-        # linia wiodąca pionowa, pomocnicza
-        self.leading_line_draw_state                    = True
-
-        # linie na głównej klatce
-        self.trace_line_draw_state                      = True
-        self.center_of_gravity_line_draw_state          = False
-
-        #################################################
-        # boczny widok - wycięta klatka
-        self.side_frame_draw_state                      = True
-        self.side_frame_background_draw_state           = True
-
-        # szkielet na bocznym widoku
-        self.side_skeleton_draw_state                   = False
-        self.side_skeleton_right_draw_state             = True
-        self.side_skeleton_left_draw_state              = False   
-
-        # linia bazy kół na bocznym widoku
-        self.side_wheel_base_line_draw_state            = True
-
-        # pionowa linia wiodąca - głowa
-        self.side_head_leading_line_draw_state          = True
-
-        #################################################
-        # pozycje do wyświetlenia jako checkboxy
-
-class Frame_widgets:
-    def __init__(self):
-        # pozycje do wyświetlenia jako checkboxy
-        self.labels_to_display  =   ['',
-                            'main_frame_draw_state',
-                            'main_frame_background_draw_state',
-                            '',
-                            'main_skeleton_draw_state',
-                            'main_skeleton_right_draw_state',
-                            'main_skeleton_left_draw_state',
-                            '',
-                            'right_knee_ang_chart_draw_state',
-                            'right_hip_ang_chart_draw_state',
-                            'right_elbow_ang_chart_draw_state',
-                            'left_knee_ang_chart_draw_state',
-                            'left_hip_ang_chart_draw_state',
-                            'left_elbow_ang_chart_draw_state',
-                            '',
-                            'stack_reach_len_chart_draw_state',
-                            'stack_reach_ang_chart_draw_state',
-                            'speed_chart_draw_state',
-                            '',
-                            'charts_background_draw_state',
-                            'charts_descriptions_draw_state',
-                            'leading_line_draw_state',
-                            '',
-                            'trace_line_draw_state',
-                            'center_of_gravity_line_draw_state',
-                            '',
-                            'side_frame_draw_state',
-                            'side_frame_background_draw_state',
-                            '',
-                            'side_skeleton_draw_state',
-                            'side_skeleton_right_draw_state',
-                            'side_skeleton_left_draw_state',
-                            '',
-                            'side_wheel_base_line_draw_state',
-                            'side_head_leading_line_draw_state']
-  
-        self.checkboxes =   {}
