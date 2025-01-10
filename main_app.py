@@ -9,19 +9,21 @@ class CanvasImage(tk.Canvas):
     def __init__(self, master: tk.Tk, **kwargs):
         super().__init__(master, **kwargs)
 
-        self.source_image = None
-        self.image_id = None
-        self.image = None
+        self.source_image   = None
+        self.image_id       = None
+        self.image          = None
 
-        self.width, self.height = 0, 0
-        self.center_x, self.center_y = 0, 0
+        self.width, self.height         = 0, 0
+        self.center_x, self.center_y    = 0, 0
         self.bind('<Configure>', self.update_values)
-    
+
+        self.master.master.checkboxes_changed.trace_add("write", self.update_view)
+
     def update_values(self, *_) -> None:
-        self.width = self.winfo_width()
-        self.height = self.winfo_height()
-        self.center_x = self.width//2
-        self.center_y = self.height//2
+        self.width         = self.winfo_width()
+        self.height        = self.winfo_height()
+        self.center_x      = self.width//2
+        self.center_y      = self.height//2
 
         if self.image is None: return
         self.delete_previous_image()
@@ -44,13 +46,6 @@ class CanvasImage(tk.Canvas):
         scaled_image = self.source_image.resize((new_width, new_height))
         self.image = ImageTk.PhotoImage(scaled_image)
 
-    def print_size(self) -> None:
-        if self.image is None: return
-        print('x'*10)
-        print('image_size'+str(self.source_image.size))
-        print('self.size :'+str(self.width)+"x"+str(self.height))
-        print('x'*12)
-
     def paste_image(self) -> None:
         self.image_id = self.create_image(self.center_x, self.center_y, image=self.image)
 
@@ -59,14 +54,20 @@ class CanvasImage(tk.Canvas):
 
         self.delete_previous_image()
 
-        self.master.master.clip.display_frame(self.master.master.frame_to_display,
-                                              self.master.master.draws_states)
         self.source_image = self.master.master.clip.image
 
         self.image = ImageTk.PhotoImage(self.source_image)
 
         self.resize_image()
         self.paste_image()
+
+    def update_view(self, *_) -> None:
+        
+        # aktualizuje klatkę do wyświetlenia
+        self.master.master.clip.display_frame(self.master.master.frame_to_display,
+                                              self.master.master.draws_states)
+        
+        self.open_image()
 
 class Frame_right(tk.Frame):
     def __init__(self, master: tk.Tk, **kwargs):
@@ -80,8 +81,6 @@ class Frame_right(tk.Frame):
 
         self.canvas = CanvasImage(self, relief='sunken', bd=2)
         tk.Button(self, text='ładuj obraz', comman=self.canvas.open_image).pack()
-        tk.Button(self, text='canva size', comman=self.canvas.print_size).pack()
-        tk.Button(self, text='frame size', comman=self.print_size).pack()
         tk.Button(self, text='frame count +', comman=self.frame_cnt_forward).pack()
         tk.Button(self, text='frame count -', comman=self.frame_cnt_back).pack()
         tk.Button(self, text='make clip', comman=self.make_clip).pack()
@@ -94,7 +93,7 @@ class Frame_right(tk.Frame):
 
     def update_view(self,x) -> None:
         self.master.frame_to_display=int(float(x))
-        self.canvas.open_image()
+        self.canvas.update_view()
 
     def print_size(self) -> None:       
         self.width = self.winfo_width()
@@ -138,18 +137,18 @@ class Frame_left(tk.Frame):
         # labeli i są zestawiane na podstawie ich tekstu. Key = tekst labela
        
         for label in self.labels:
-            # dostosowuje nazwę do wyświetlenia
+            # dostosowuje nazwę do wyświetlenia - todo: dodać polskie tłumaczenia np.jako słownik
             text_to_display = label.replace('_draw_state', '').replace('_', ' ').capitalize()
 
             if label!='':
                 self.checkboxes_variables[label]  = tk.IntVar()
                 ttk.Checkbutton(self, 
                                 text=text_to_display,
-                                bootstyle="success, round-toggle",
+                                # bootstyle="success, round-toggle",
                                 variable = self.checkboxes_variables[label], 
                                 command=self.update_draws_states).pack(side='top',
-                                                                        anchor='nw',
-                                                                            padx=10)
+                                                                       anchor='nw',
+                                                                       padx=10)
             else:
                 ttk.Label(self, text=text_to_display).pack()
 
@@ -166,9 +165,9 @@ class Frame_left(tk.Frame):
         for checkbox_name, checkbox_variable in self.checkboxes_variables.items():
             setattr(self.master.draws_states, checkbox_name, checkbox_variable.get())
         
-        # przeładowuje wyświetlaną klatkę
+        # zmienia stan zmiennej dającej sygnal że stan chceckboxów sie zmienił
 
-        # self.master.frame_2.canvas.open_image()
+        self.master.checkboxes_changed.set(not self.master.checkboxes_changed)
 
 class Window(tk.Tk):
     def __init__(self, **kwargs):
@@ -176,22 +175,26 @@ class Window(tk.Tk):
 
         # ustala styl widgetów
 
-        tb.Style().configure('Roundtoggle.Toolbutton', font=('Helvetica', 16))
+        # tb.Style().configure('Roundtoggle.Toolbutton', font=('Helvetica', 16))
 
-        # twórz obiekt clipu
-
-        self.play=False
+        # tworzy obiekt clipu
 
         self.filename='VID_20241214_134111_004.mp4'
-        self.frame_to_display=20
+
+        self.frame_to_display=60
 
         self.clip=classes.Clip(self.filename)
         
-        # twórz obiekt ze stanem pozycji do wyświetlenia
+        # tworzy obiekt ze stanem pozycji do wyświetlenia
 
         self.draws_states = classes.Draws_states()
 
-        # twórz okno
+        # tworzy switch do aktualizacji klatki po zmianie chechboxów, 
+        # zmienia się w lewy Framie, a funkcja zbindowana jest w canvie
+
+        self.checkboxes_changed = tk.BooleanVar()
+
+        # tworzy okno
 
         self.minsize(800, 600)
         

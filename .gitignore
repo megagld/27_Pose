@@ -8,3 +8,4 @@ _stored data/**
 tmp_done/**
 /models/__pycache__/**
 _clips/**
+__pycache__/**

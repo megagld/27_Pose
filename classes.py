@@ -435,13 +435,13 @@ class Clip:
 
         self.charts_state = {
             "right_knee_chart": [True, (90, 180), True],
-            "left_knee_chart": [False, (90, 180), True],
-            "right_hip_chart": [False, (90, 180), True],
+            "left_knee_chart": [True, (90, 180), True],
+            "right_hip_chart": [True, (90, 180), True],
             "left_hip_chart": [False, (90, 180), True],
-            "right_elbow_chart": [False, (90, 180), True],
+            "right_elbow_chart": [True, (90, 180), True],
             "left_elbow_chart": [False, (90, 180), True],
-            "stack_reach_len": [True, (50, 120), False],
-            "stack_reach_ang": [True, (0, 90), True],
+            "stack_reach_len": [False, (50, 120), False],
+            "stack_reach_ang": [False, (0, 90), True],
         }
 
         # ustawienia rysowania linii
@@ -783,7 +783,8 @@ class Clip:
 
         self.frames[frame_number].draw_wheelbase_line(image)
 
-        self.frames[frame_number].draw_side_view(image)
+        if draws_states.side_frame_draw_state:
+            self.frames[frame_number].draw_side_view(image)
 
         self.draw_trace(image, frame_number)
 
@@ -877,7 +878,6 @@ class Draws_states:
         self.side_head_leading_line_draw_state          = True
 
         #################################################
-        # pozycje do wyświetlenia jako checkboxy
 
 class Frame_widgets:
     def __init__(self):
