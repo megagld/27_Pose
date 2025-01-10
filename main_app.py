@@ -4,6 +4,8 @@ from tkinter import ttk
 import ttkbootstrap as tb
 from PIL import ImageTk
 import classes
+from timeit import default_timer as timer
+
 
 class CanvasImage(tk.Canvas):
     def __init__(self, master: tk.Tk, **kwargs):
@@ -20,6 +22,8 @@ class CanvasImage(tk.Canvas):
         self.master.master.checkboxes_changed.trace_add("write", self.update_view)
 
     def update_values(self, *_) -> None:
+        start = timer()
+
         self.width         = self.winfo_width()
         self.height        = self.winfo_height()
         self.center_x      = self.width//2
@@ -29,6 +33,9 @@ class CanvasImage(tk.Canvas):
         self.delete_previous_image()
         self.resize_image()
         self.paste_image()
+
+        end = timer()
+        # print(f'{self.master.master.frame_to_display}:{end - start}')
 
     def delete_previous_image(self) -> None:
         if self.image is None: return
@@ -52,22 +59,27 @@ class CanvasImage(tk.Canvas):
     def open_image(self) -> None:
         # if not (filename := askopenfilename()): return
 
-        self.delete_previous_image()
+        if not self.master.master.clip.image: return
 
+        self.delete_previous_image()
+        
         self.source_image = self.master.master.clip.image
 
         self.image = ImageTk.PhotoImage(self.source_image)
 
         self.resize_image()
         self.paste_image()
-
-    def update_view(self, *_) -> None:
         
+    def update_view(self, *_) -> None:
+        start = timer()
         # aktualizuje klatkę do wyświetlenia
         self.master.master.clip.display_frame(self.master.master.frame_to_display,
                                               self.master.master.draws_states)
         
         self.open_image()
+
+        end = timer()
+        # print(f'{self.master.master.frame_to_display}:{end - start}')
 
 class Frame_right(tk.Frame):
     def __init__(self, master: tk.Tk, **kwargs):
@@ -75,23 +87,27 @@ class Frame_right(tk.Frame):
 
         self.width = self.winfo_width()
 
-        self.scale_range = self.master.clip.frames_amount-1
-
         self.var = None
 
         self.canvas = CanvasImage(self, relief='sunken', bd=2)
         tk.Button(self, text='ładuj obraz', comman=self.canvas.open_image).pack()
+        tk.Button(self, text='przeładuj obraz', comman=self.canvas.update_view).pack()
         tk.Button(self, text='frame count +', comman=self.frame_cnt_forward).pack()
         tk.Button(self, text='frame count -', comman=self.frame_cnt_back).pack()
         tk.Button(self, text='make clip', comman=self.make_clip).pack()
 
-        self.scale=ttk.Scale(self, variable = self.var, orient='horizontal', to=self.scale_range, command=self.update_view)
+        self.scale=ttk.Scale(self, 
+                             variable = self.var, orient='horizontal', 
+                             from_= self.master.clip.scale_range_min, 
+                             to=self.master.clip.scale_range_max, 
+                             command=self.update_view)
 
         self.scale.pack(side="top", fill="x", expand=False)
 
         self.canvas.pack(expand=True, fill='both', padx=10, pady=10)
 
     def update_view(self,x) -> None:
+        pass
         self.master.frame_to_display=int(float(x))
         self.canvas.update_view()
 
@@ -106,13 +122,13 @@ class Frame_right(tk.Frame):
 
     def frame_cnt_forward(self):
         self.master.frame_to_display+=1
-        self.master.frame_to_display=min(self.master.frame_to_display, self.scale_range)
+        self.master.frame_to_display=min(self.master.frame_to_display, self.master.clip.scale_range_max)
         self.canvas.open_image()
         self.scale.set(self.master.frame_to_display)
 
     def frame_cnt_back(self):
         self.master.frame_to_display-=1
-        self.master.frame_to_display=max(0, self.master.frame_to_display)
+        self.master.frame_to_display=max(self.master.frame_to_display, self.master.clip.scale_range_min)
         self.canvas.open_image()
         self.scale.set(self.master.frame_to_display)
 
@@ -144,7 +160,7 @@ class Frame_left(tk.Frame):
                 self.checkboxes_variables[label]  = tk.IntVar()
                 ttk.Checkbutton(self, 
                                 text=text_to_display,
-                                # bootstyle="success, round-toggle",
+                                bootstyle="success, round-toggle",
                                 variable = self.checkboxes_variables[label], 
                                 command=self.update_draws_states).pack(side='top',
                                                                        anchor='nw',
@@ -175,13 +191,13 @@ class Window(tk.Tk):
 
         # ustala styl widgetów
 
-        # tb.Style().configure('Roundtoggle.Toolbutton', font=('Helvetica', 16))
+        tb.Style().configure('Roundtoggle.Toolbutton', font=('Helvetica', 16))
 
         # tworzy obiekt clipu
 
-        self.filename='VID_20241214_134111_004.mp4'
+        self.filename='PXL_20241218_121042417_001.mp4'
 
-        self.frame_to_display=60
+        self.frame_to_display=20
 
         self.clip=classes.Clip(self.filename)
         
@@ -189,7 +205,7 @@ class Window(tk.Tk):
 
         self.draws_states = classes.Draws_states()
 
-        # tworzy switch do aktualizacji klatki po zmianie chechboxów, 
+        # tworzy switch do aktualizacji klatki po zmianie checkboxów, 
         # zmienia się w lewy Framie, a funkcja zbindowana jest w canvie
 
         self.checkboxes_changed = tk.BooleanVar()
@@ -201,6 +217,7 @@ class Window(tk.Tk):
         self.frame_1 = Frame_left(self).pack(side='left', fill='both', expand=False)
         self.frame_2 = Frame_right(self).pack(side='right', fill='both', expand=True)
 
+        print('x')
 
 if __name__ == '__main__':
     window = Window()

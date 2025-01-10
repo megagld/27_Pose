@@ -47,6 +47,17 @@ def get_dist(pkt_1, pkt_2):
 
     return ((pos_x_2 - pos_x_1) ** 2 + (pos_y_2 - pos_y_1) ** 2) ** 0.5
 
+def get_mid(kpts, sk_id_1, sk_id_2):
+    # zwraca punkt środkowy między dwoma punktami szkieletu
+    steps = 3
+    pos_x_1, pos_y_1 = (kpts[(sk_id_1 - 1) * steps]), (
+                        kpts[(sk_id_1 - 1) * steps + 1])
+    pos_x_2, pos_y_2 = (kpts[(sk_id_2 - 1) * steps]), (
+                        kpts[(sk_id_2 - 1) * steps + 1] )
+
+    return Point((pos_x_2 + pos_x_1) / 2, (pos_y_2 + pos_y_1) / 2)
+
+
 class Point:
     def __init__(self, pos_x, pos_y, sk_id=None):
         self.sk_id = sk_id
@@ -59,23 +70,36 @@ class Point:
 class Frame:
     def __init__(self, frame_count, frame_time, kpts, frame_offsets):
 
-        self.frame_count = frame_count
-        self.frame_time = frame_time
-        self.kpts = kpts
-        self.detected = kpts != []
-        self.skeleton_points = {}
+        self.frame_count        = frame_count
+        self.frame_time         = frame_time
+        self.kpts               = kpts
+        self.detected           = kpts != []
+        self.skeleton_points    = {}
+
+        self.right_knee_ang     = None
+        self.right_hip_ang      = None
+        self.right_elbow_ang    = None
+
+        self.left_knee_ang      = None
+        self.left_hip_ang       = None
+        self.left_elbow_ang     = None
+
+
         self.angs = {}
-        self.trace_point = None
-        self.center_of_gravity = None
-        self.center_of_bar = None
-        self.stack_reach_len = None
-        self.stack_reach_ang = None
+
+
+        self.trace_point        = None
+        self.center_of_gravity  = None
+        self.center_of_bar      = None
+        self.stack_reach_len    = None
+        self.stack_reach_ang    = None
 
         # real bike geometry
         self.bike_reach_len       = 485
         self.bike_stack_len       = 645
         self.bike_stack_reach_len = (self.bike_reach_len**2+self.bike_stack_len**2)**0.5  # wprowadzić pomiar albo dopasować
         self.bike_stack_reach_ang = math.degrees(math.atan(self.bike_stack_len/self.bike_reach_len))  # wprowadzić pomiar albo dopasować
+        
         self.bike_real_s_r_ang    = 10  #korekta kąta ze względu na to że pomiar dotyczy nie dokładnie reachu i stacku
         self.bike_stack_reach_ang+= self.bike_real_s_r_ang
 
@@ -91,44 +115,81 @@ class Frame:
 
     def update_data_if_detected(self):
         if self.detected:
-            self.organize_points()
+
+            # organizuje pomierzone punkty kpts w słownik gdzie key= id szkieletu, a value= obiekt Point 
+            self.organize_skeleton_points()
+            
+            # oblicza kąty między zadanymi punktami, zestawia je w zmiennych self.___.ang
             self.calc_ang()
 
             # DO ANALIZY CZY LEPIEJ DAĆ ŚRODEK MIĘDZY PUNKTAMI CZY PUNKTY Z JEDNEJ STRONY 
+            # skorygować o zmianę jeśli film jest nagrywany z lewej strony roweru
+            # może dodać zmienną - info o kierunku poruszania sie roweru i na tej podstawie która strona jest nagrywana
 
-            self.trace_point = self.skeleton_points[17]
-            self.center_of_gravity = self.skeleton_points[13]
-            self.center_of_bar = self.skeleton_points[11]
+            self.trace_point        = self.skeleton_points[17]
+            self.center_of_gravity  = self.skeleton_points[13]
+            self.center_of_bar      = self.skeleton_points[11]
 
-            # self.trace_point = self.get_mid(16, 17)
-            # self.center_of_gravity = self.get_mid(12, 13)
-            # self.center_of_bar = self.get_mid(10, 11)
+            # self.trace_point = self.get_mid(self.kpts, 16, 17)
+            # self.center_of_gravity = self.get_mid(self.kpts,12, 13)
+            # self.center_of_bar = self.get_mid(self.kpts, 10, 11)
 
-            self.stack_reach_len = get_dist(self.trace_point, self.center_of_bar)
-            self.stack_reach_ang = self.stack_reach_ang_calc(
-                self.trace_point, self.center_of_bar
+            self.stack_reach_len    = get_dist(self.trace_point, 
+                                               self.center_of_bar)
+            
+            self.stack_reach_ang    = self.stack_reach_ang_calc(self.trace_point, 
+                                                                self.center_of_bar)
+
+    def organize_skeleton_points(self):
+        # tworzy słownik ze współrzędnymi punktów szkieletu
+        # koryguje wspórzędne o to że rozpoznanie było na zmienionym formacie filmu - letterbox
+
+        steps = 3
+        for sk_id in range(1, 18):
+            pos_x   =   (self.kpts[(sk_id - 1) * steps])     + self.left_ofset
+            pos_y   =   (self.kpts[(sk_id - 1) * steps + 1]) + self.top_offset
+            
+            self.skeleton_points[sk_id] = Point(pos_x, 
+                                                pos_y, 
+                                                sk_id)
+            
+    def calc_ang(self):
+        # tworzy słownik z danymi do wykresów
+
+        # punkty obliczenia kątów
+        # wierzchołek kąta trzeba podać w środku listy (b)
+        # kąty są mierzone do 180 st. (!)
+
+        angs_list = {
+            "right_knee_ang": [13, 15, 17],
+            "left_knee_ang": [12, 14, 16],
+            "right_hip_ang": [7, 13, 15],
+            "left_hip_ang": [6, 12, 14],
+            "right_elbow_ang": [7, 9, 11],
+            "left_elbow_ang": [6, 8, 10],
+        }
+
+        for name, (a, b, c) in angs_list.items():
+
+            # tworzenie wektorów:
+            u = (
+                self.skeleton_points[a].x - self.skeleton_points[b].x,
+                self.skeleton_points[a].y - self.skeleton_points[b].y,
+            )
+            v = (
+                self.skeleton_points[c].x - self.skeleton_points[b].x,
+                self.skeleton_points[c].y - self.skeleton_points[b].y,
             )
 
-    def get_mid(self, sk_id_1, sk_id_2):
-        # zwraca punkt środkowy między dwoma punktami szkieletu
-        steps = 3
-        pos_x_1, pos_y_1 = (self.kpts[(sk_id_1 - 1) * steps]), (
-                            self.kpts[(sk_id_1 - 1) * steps + 1])
-        pos_x_2, pos_y_2 = (self.kpts[(sk_id_2 - 1) * steps]), (
-                            self.kpts[(sk_id_2 - 1) * steps + 1] )
+            # obliczneie kąta miedzy wektorami
+            calculated_ang = angle_between_vectors(u, v)[1]
 
-        return Point((pos_x_2 + pos_x_1) / 2, (pos_y_2 + pos_y_1) / 2)
+            self.angs[name] = calculated_ang
 
-    def organize_points(self):
-        # tworzy słownik ze współrzędnymi punktów szkieletu
-        steps = 3
-        if self.kpts:
-            self.detected = True
-            for sk_id in range(1, 18):
-                pos_x, pos_y = (self.kpts[(sk_id - 1) * steps]) + self.left_ofset, (
-                    self.kpts[(sk_id - 1) * steps + 1]
-                ) + self.top_offset
-                self.skeleton_points[sk_id] = Point(pos_x, pos_y, sk_id)
+            setattr(self, name, calculated_ang)
+
+
+
 
     def draw_skeleton(self, image, skeleton_to_display=None, points_to_display=None):
 
@@ -281,41 +342,7 @@ class Frame:
         points_to_display = [1, 2, 4, 6, 8, 10, 12, 14, 16]
 
         self.draw_skeleton(image, skeleton_left_side, points_to_display)
-
-    def calc_ang(self):
-        # tworzy słownik z danymi do wykresów
-
-        # punkty obliczenia kątów
-        # dodać kąty pozycji tułów/poziom i głowa/kosta/rower
-        # wierzchołek kąta trzeba podać w środku listy (b)
-        # kąty są mierzone do 180 st. (!)
-
-        ang_list = {
-            "right_knee": [13, 15, 17],
-            "left_knee": [12, 14, 16],
-            "right_hip": [7, 13, 15],
-            "left_hip": [6, 12, 14],
-            "right_elbow": [7, 9, 11],
-            "left_elbow": [6, 8, 10],
-        }
-
-        for name, (a, b, c) in ang_list.items():
-
-            # tworzenie wektorów:
-            u = (
-                self.skeleton_points[a].x - self.skeleton_points[b].x,
-                self.skeleton_points[a].y - self.skeleton_points[b].y,
-            )
-            v = (
-                self.skeleton_points[c].x - self.skeleton_points[b].x,
-                self.skeleton_points[c].y - self.skeleton_points[b].y,
-            )
-
-            # obliczneie kąta miedzy wektorami
-            ang_to_add = angle_between_vectors(u, v)[1]
-
-            self.angs[name] = ang_to_add
-
+    
     def stack_reach_ang_calc(self, trace_point, center_of_bar):
 
         # pomiar kąta względem poziomu - przeciwnie do wskazówek zegara
@@ -333,31 +360,32 @@ class Frame:
 
     def draw_wheelbase_line(self, image):
 
-        size_factor=self.stack_reach_len/self.bike_stack_reach_len
+        if self.detected:
+            size_factor=self.stack_reach_len/self.bike_stack_reach_len
 
-        central_point           = self.trace_point
-        center_of_back_wheel    = transform_point(central_point, -self.bike_chain_stay*size_factor, 0)
-        center_of_front_wheel   = transform_point(central_point, (-self.bike_chain_stay+self.bike_wheel_base)*size_factor, 0)
-        
-        # obliczenie kąta obrotu roweru w stosunku do poziomu
-        # wartość dodatnia oznacza obrót zgodnie z ruchem wskazówek zegara
+            central_point           = self.trace_point
+            center_of_back_wheel    = transform_point(central_point, -self.bike_chain_stay*size_factor, 0)
+            center_of_front_wheel   = transform_point(central_point, (-self.bike_chain_stay+self.bike_wheel_base)*size_factor, 0)
+            
+            # obliczenie kąta obrotu roweru w stosunku do poziomu
+            # wartość dodatnia oznacza obrót zgodnie z ruchem wskazówek zegara
 
-        bike_rotation = self.bike_stack_reach_ang - self.stack_reach_ang
+            bike_rotation = self.bike_stack_reach_ang - self.stack_reach_ang
 
-        center_of_back_wheel=rotate_point(central_point, center_of_back_wheel, math.radians(bike_rotation))
-        center_of_front_wheel=rotate_point(central_point, center_of_front_wheel, math.radians(bike_rotation))
+            center_of_back_wheel=rotate_point(central_point, center_of_back_wheel, math.radians(bike_rotation))
+            center_of_front_wheel=rotate_point(central_point, center_of_front_wheel, math.radians(bike_rotation))
 
-        # rysuj linie bazy kół
+            # rysuj linie bazy kół
 
-        cv2.line(image, center_of_back_wheel.disp, center_of_front_wheel.disp, (0,0,0), thickness=2)
+            cv2.line(image, center_of_back_wheel.disp, center_of_front_wheel.disp, (0,0,0), thickness=2)
 
-        # rysuje koła na końcu bazy kół
+            # rysuje koła na końcu bazy kół
 
-        # cv2.circle(image, center_of_back_wheel.disp, int(self.bike_wheel_size/2*size_factor), (0,0,0), thickness=2)
-        # cv2.circle(image, center_of_front_wheel.disp, int(self.bike_wheel_size/2*size_factor), (0,0,0), thickness=2)
+            # cv2.circle(image, center_of_back_wheel.disp, int(self.bike_wheel_size/2*size_factor), (0,0,0), thickness=2)
+            # cv2.circle(image, center_of_front_wheel.disp, int(self.bike_wheel_size/2*size_factor), (0,0,0), thickness=2)
 
 
-        # cv2.line(image, (0,0), central_point.disp, (0,0,0), thickness=2)
+            # cv2.line(image, (0,0), central_point.disp, (0,0,0), thickness=2)
 
     def draw_side_view(self,image):
 
@@ -397,8 +425,10 @@ class Frame:
 
 class Clip:
     def __init__(self, vid_name):
-        self.name = vid_name
-        self.vid_path = f"{os.getcwd()}\\_data\\{self.name}"
+
+        self.name           = vid_name
+        self.vid_path       = f"{os.getcwd()}\\_data\\{self.name}"
+        self.kpts_json_path = f"{os.getcwd()}\\_analysed\\{self.name.replace('.mp4','_kpts.json')}"
 
         self.cap = cv2.VideoCapture(self.vid_path)
 
@@ -409,16 +439,17 @@ class Clip:
         self.frame_offsets = self.left_ofset, self.top_offset
         self.calc_frame_offset()
 
-        # self.org_vid_prop=OrginalVideoProperitier(self.vid_path)
+        # zestawia wszyskie klatki clipu
 
         self.frames = {}
-        self.add_frames()
+        self.colect_frames()
 
         self.frames_amount = len(self.frames)
 
         # dane do wykresów i linii
         self.charts = {}
         self.generate_data_charts()
+
         self.generate_data_stack_reach_len()
         self.generate_data_stack_reach_ang()
 
@@ -447,37 +478,44 @@ class Clip:
         # ustawienia rysowania linii
         self.lines_state = {"trace_line": False, "center_of_gravity_line": False}
 
+        # ustala zakres dla widgeta Scale
+
+        self.scale_range_min = 0
+        self.scale_range_max = self.frames_amount-1
+        self.calculate_scale_range()
+
+    def calculate_scale_range(self):
+        # zakres suwaka ma być od pierwszej do ostaniej klatki na której jest wykryty szkielet
+        self.scale_range_min = min(i for i,j in self.frames.items() if j.detected)
+        self.scale_range_max = max(i for i,j in self.frames.items() if j.detected)
+
     def calc_frame_offset(self):
 
         self.cap.set(0, 1)
         _, img = self.cap.read()
         frame_width = int(self.cap.get(3))
 
-        self.left_ofset, self.top_offset = letterbox_calc(
-            img, (frame_width), stride=64, auto=True
-        )
+        self.left_ofset, self.top_offset = letterbox_calc(img, 
+                                                          (frame_width), 
+                                                          stride=64, 
+                                                          auto=True)
 
-    def add_frames(self):
+    def colect_frames(self):
 
-        kpts_json_path = (
-            f"{os.getcwd()}\\_analysed\\{self.name.replace('.mp4','_kpts.json')}"
-        )
+        # zestawia klatki w słownik gdzie key=numer klatki (od 0) a value= obiekt klatki Frame
 
-        with open(kpts_json_path, "r") as f:
+        with open(self.kpts_json_path, "r") as f:
             data = json.load(f)
 
         for frame_count, data in enumerate(data.items()):
 
-            # frame_time, kpts = data
-
-            # do zmiany!!!!!!!!!!!!!!!!
             frame_time, kpts = data
             frame_time = float(frame_time)
-            # do zmiany!!!!!!!!!!!!!!!!
 
-            self.frames[frame_count] = Frame(
-                frame_count, frame_time, kpts, self.frame_offsets
-            )
+            self.frames[frame_count] = Frame(frame_count, 
+                                             frame_time, 
+                                             kpts, 
+                                             self.frame_offsets)
 
     def generate_data_charts(self):
 
@@ -496,10 +534,53 @@ class Clip:
                 if frame_obj.detected:
                     self.charts[charts][frame] = [
                         frame_obj.skeleton_points[17].x_disp,
-                        int(frame_obj.angs[charts[:-6]]),
+                        int(frame_obj.angs[charts.replace('_chart','_ang')]),
                     ]
                 else:
                     self.charts[charts][frame] = None
+                    
+
+        self.charts = {
+            "right_knee_ang_chart": {"name": "prawe kolano [st.]"},
+            "left_knee_ang_chart": {"name": "lewe kolano [st.]"},
+            "right_hip_ang_chart": {"name": "prawe biodro [st.]"},
+            "left_hip_ang_chart": {"name": "lewe biodro [st.]"},
+            "right_elbow_ang_chart": {"name": "prawy łokieć [st.]"},
+            "left_elbow_ang_chart": {"name": "lewy łokieć [st.]"},
+        }
+
+        for chart_name in self.charts.keys():
+            self.charts[chart_name] = Chart(name = chart_name, 
+                                            name_display = self.charts[chart_name]['name'])
+
+            chart_point =   {}
+
+            for frame_number, frame_obj in self.frames.items():
+                if frame_obj.detected:
+                    x_pos   = frame_obj.skeleton_points[17].x_disp
+                    y_pos   = int(frame_obj.angs[charts.replace('_chart','')])
+                else:
+                    pass
+                chart_point[frame_number]=Point(x_pos, y_pos)
+            
+            self.charts[chart_name].chart_points = chart_point
+
+        # wykesy zmieniona na obiekty, ale nie wprowadzone dane jn.
+
+        #     "right_knee_chart": [True, (90, 180), True],
+        
+
+
+
+
+
+
+
+
+
+
+
+
 
     def generate_data_stack_reach_len(self):
         # wykres pomocniczy do sprawdzania czy video i rozpoznanie pozwala na ustalenie pozycji roweru. Mierzy odległość kostka-ręka 17-13
@@ -781,10 +862,9 @@ class Clip:
         if draws_states.main_skeleton_draw_state:
             self.frames[frame_number].draw_skeleton(image)
 
-        self.frames[frame_number].draw_wheelbase_line(image)
-
         if draws_states.side_frame_draw_state:
             self.frames[frame_number].draw_side_view(image)
+            self.frames[frame_number].draw_wheelbase_line(image)
 
         self.draw_trace(image, frame_number)
 
@@ -917,3 +997,11 @@ class Frame_widgets:
                             '',
                             'side_wheel_base_line_draw_state',
                             'side_head_leading_line_draw_state']
+
+class Chart:
+    def __init__(self, name, name_display=None):
+        self.name           =   name
+        self.name_display   =   name_display if name_display else self.name
+        self.chart_points   =   None
+
+
