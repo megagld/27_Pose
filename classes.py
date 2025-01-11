@@ -1,5 +1,6 @@
 import os
 import json
+from turtle import setup
 import cv2
 import numpy as np
 import math
@@ -57,15 +58,17 @@ def get_mid(kpts, sk_id_1, sk_id_2):
 
     return Point((pos_x_2 + pos_x_1) / 2, (pos_y_2 + pos_y_1) / 2)
 
-
 class Point:
     def __init__(self, pos_x, pos_y, sk_id=None):
         self.sk_id = sk_id
+
         self.x = pos_x
         self.y = pos_y
+        self.pos = (self.x, self.y)
+
         self.x_disp = int(pos_x)
         self.y_disp = int(pos_y)
-        self.disp   = (self.x_disp, self.y_disp)
+        self.pos_disp   = (self.x_disp, self.y_disp)
 
 class Frame:
     def __init__(self, frame_count, frame_time, kpts, frame_offsets):
@@ -83,10 +86,6 @@ class Frame:
         self.left_knee_ang      = None
         self.left_hip_ang       = None
         self.left_elbow_ang     = None
-
-
-        self.angs = {}
-
 
         self.trace_point        = None
         self.center_of_gravity  = None
@@ -111,9 +110,9 @@ class Frame:
         self.left_ofset = -1 * self.frame_offsets[0]
         self.top_offset = -1 * self.frame_offsets[1]
 
-        self.update_data_if_detected()
+        self.update_data()
 
-    def update_data_if_detected(self):
+    def update_data(self):
         if self.detected:
 
             # organizuje pomierzone punkty kpts w słownik gdzie key= id szkieletu, a value= obiekt Point 
@@ -184,12 +183,7 @@ class Frame:
             # obliczneie kąta miedzy wektorami
             calculated_ang = angle_between_vectors(u, v)[1]
 
-            self.angs[name] = calculated_ang
-
             setattr(self, name, calculated_ang)
-
-
-
 
     def draw_skeleton(self, image, skeleton_to_display=None, points_to_display=None):
 
@@ -377,7 +371,7 @@ class Frame:
 
             # rysuj linie bazy kół
 
-            cv2.line(image, center_of_back_wheel.disp, center_of_front_wheel.disp, (0,0,0), thickness=2)
+            cv2.line(image, center_of_back_wheel.pos_disp, center_of_front_wheel.pos_disp, (0,0,0), thickness=2)
 
             # rysuje koła na końcu bazy kół
 
@@ -447,36 +441,77 @@ class Clip:
         self.frames_amount = len(self.frames)
 
         # dane do wykresów i linii
+        self.avilable_charts = {
+            "right_knee_ang_chart": {
+                "chart_description": "prawe kolano [st.]",
+                "range_min": 17,
+                "range_max": 180,
+                "reverse": False,
+            },
+            "left_knee_ang_chart": {
+                "chart_description": "lewe kolano [st.]",
+                "range_min": 90,
+                "range_max": 180,
+                "reverse": False,
+            },
+            "right_hip_ang_chart": {
+                "chart_description": "prawe biodro [st.]",
+                "range_min": 90,
+                "range_max": 180,
+                "reverse": False,
+            },
+            "left_hip_ang_chart": {
+                "chart_description": "lewe biodro [st.]",
+                "range_min": 90,
+                "range_max": 180,
+                "reverse": False,
+            },
+            "right_elbow_ang_chart": {
+                "chart_description": "prawy łokieć [st.]",
+                "range_min": 90,
+                "range_max": 180,
+                "reverse": False,
+            },
+            "left_elbow_ang_chart": {
+                "chart_description": "lewy łokieć [st.]",
+                "range_min": 90,
+                "range_max": 180,
+                "reverse": False,
+            },
+            "stack_reach_len_chart": {
+                "chart_description": "odległość stack/reach [m]",
+                "range_min": 50,
+                "range_max": 120,
+                "reverse": False,
+            },
+            "stack_reach_ang_chart": {
+                "chart_description": "kąt stack/reach [st.]",
+                "range_min": 0,
+                "range_max": 90,
+                "reverse": False,
+            },
+        }
         self.charts = {}
-        self.generate_data_charts()
+        self.generate_charts_data()
 
-        self.generate_data_stack_reach_len()
-        self.generate_data_stack_reach_ang()
-
+        self.avilable_lines = {
+            "trace_line": {
+                "line_description": "linia trasy",
+                "frame_atr": 'trace_point',
+                'line_color': (137, 126, 23)
+            },
+            "center_of_gravity_line": {
+                "line_description": "inia środka ciężkości",
+                "frame_atr": 'center_of_gravity',
+                'line_color': (20, 126, 23)  
+            },
+        }
         self.lines = {}
-        self.generate_data_lines()
+        self.generate_lines_data()
 
         # ustawienia do rysowania wykresów
         self.chart_y_pos = 750
         self.chart_height = 90
-
-        self.draw_background        = True
-        self.draw_leading_line      = True
-        self.draw_side_view_state   = True
-
-        self.charts_state = {
-            "right_knee_chart": [True, (90, 180), True],
-            "left_knee_chart": [True, (90, 180), True],
-            "right_hip_chart": [True, (90, 180), True],
-            "left_hip_chart": [False, (90, 180), True],
-            "right_elbow_chart": [True, (90, 180), True],
-            "left_elbow_chart": [False, (90, 180), True],
-            "stack_reach_len": [False, (50, 120), False],
-            "stack_reach_ang": [False, (0, 90), True],
-        }
-
-        # ustawienia rysowania linii
-        self.lines_state = {"trace_line": False, "center_of_gravity_line": False}
 
         # ustala zakres dla widgeta Scale
 
@@ -512,240 +547,42 @@ class Clip:
             frame_time, kpts = data
             frame_time = float(frame_time)
 
-            self.frames[frame_count] = Frame(frame_count, 
-                                             frame_time, 
-                                             kpts, 
+            self.frames[frame_count] = Frame(frame_count,
+                                             frame_time,
+                                             kpts,
                                              self.frame_offsets)
 
-    def generate_data_charts(self):
+    def generate_charts_data(self):
+        # tworzenie obiektu wykresu
+        for chart_name, chart_setup in self.avilable_charts.items():
 
-        # kąty zgięcia łokci, kolan i bioder
-        self.charts = {
-            "right_knee_chart": {"name": "prawe kolano [st.]"},
-            "left_knee_chart": {"name": "lewe kolano [st.]"},
-            "right_hip_chart": {"name": "prawe biodro [st.]"},
-            "left_hip_chart": {"name": "lewe biodro [st.]"},
-            "right_elbow_chart": {"name": "prawy łokieć [st.]"},
-            "left_elbow_chart": {"name": "lewy łokieć [st.]"},
-        }
+            # sam pusty obiekt i jego setup:
+            self.charts[chart_name] = Chart(
+                name=chart_name,
+                chart_description=chart_setup["chart_description"],
+                range_min=chart_setup["range_min"],
+                range_max=chart_setup["range_max"],
+                reverse=chart_setup["reverse"],
+            )
 
-        for charts in self.charts.keys():
-            for frame, frame_obj in self.frames.items():
-                if frame_obj.detected:
-                    self.charts[charts][frame] = [
-                        frame_obj.skeleton_points[17].x_disp,
-                        int(frame_obj.angs[charts.replace('_chart','_ang')]),
-                    ]
-                else:
-                    self.charts[charts][frame] = None
-                    
-
-        self.charts = {
-            "right_knee_ang_chart": {"name": "prawe kolano [st.]"},
-            "left_knee_ang_chart": {"name": "lewe kolano [st.]"},
-            "right_hip_ang_chart": {"name": "prawe biodro [st.]"},
-            "left_hip_ang_chart": {"name": "lewe biodro [st.]"},
-            "right_elbow_ang_chart": {"name": "prawy łokieć [st.]"},
-            "left_elbow_ang_chart": {"name": "lewy łokieć [st.]"},
-        }
-
-        for chart_name in self.charts.keys():
-            self.charts[chart_name] = Chart(name = chart_name, 
-                                            name_display = self.charts[chart_name]['name'])
-
-            chart_point =   {}
+            # dodanie do wykresu punkty z kolejnych klatek:
+            tmp_chart_points_dict   =   {}
 
             for frame_number, frame_obj in self.frames.items():
-                if frame_obj.detected:
-                    x_pos   = frame_obj.skeleton_points[17].x_disp
-                    y_pos   = int(frame_obj.angs[charts.replace('_chart','')])
+                if frame_obj.detected:  # jeśli szkielet został wykryty na klatce
+
+                    # tworzenie nazwy zmiennej do pobrania z obiektu klatki
+                    frame_variable_name = chart_name.replace("_chart", "")
+
+                    x_pos = frame_obj.skeleton_points[17].x_disp
+                    y_pos = int(getattr(frame_obj, frame_variable_name))
+
+                    tmp_chart_points_dict[frame_number] = Point(x_pos, y_pos)
+
                 else:
                     pass
-                chart_point[frame_number]=Point(x_pos, y_pos)
-            
-            self.charts[chart_name].chart_points = chart_point
 
-        # wykesy zmieniona na obiekty, ale nie wprowadzone dane jn.
-
-        #     "right_knee_chart": [True, (90, 180), True],
-        
-
-
-
-
-
-
-
-
-
-
-
-
-
-    def generate_data_stack_reach_len(self):
-        # wykres pomocniczy do sprawdzania czy video i rozpoznanie pozwala na ustalenie pozycji roweru. Mierzy odległość kostka-ręka 17-13
-
-        self.charts["stack_reach_len"] = {"name": "reach_stack_len [m]"}
-
-        for frame, frame_obj in self.frames.items():
-            if frame_obj.detected and frame_obj.stack_reach_len != None:
-                self.charts["stack_reach_len"][frame] = [
-                    frame_obj.skeleton_points[17].x_disp,
-                    int(frame_obj.stack_reach_len),
-                ]
-            else:
-                self.charts["stack_reach_len"][frame] = None
-
-    def generate_data_stack_reach_ang(self):
-        # wykres pomocniczy do sprawdzania czy video i rozpoznanie pozwala na ustalenie pozycji roweru. Mierzy kat pochynia lini kostka-ręka 17-13
-
-        self.charts["stack_reach_ang"] = {"name": "reach_stack_ang [st.]"}
-
-        for frame, frame_obj in self.frames.items():
-            if frame_obj.detected and frame_obj.stack_reach_ang != None:
-                self.charts["stack_reach_ang"][frame] = [
-                    frame_obj.skeleton_points[17].x_disp,
-                    int(frame_obj.stack_reach_ang),
-                ]
-            else:
-                self.charts["stack_reach_ang"][frame] = None
-
-    def generate_data_lines(self):
-        # linie trasy (wg punktu kostki 17 i 16) i środka ciężkości (biodro 13 i 12)
-        self.lines["trace_line"] = {"name": "linia trasy"}
-        self.lines["center_of_gravity_line"] = {"name": "linia środka ciężkości"}
-
-        for frame, frame_obj in self.frames.items():
-            if frame_obj.detected:
-                self.lines["trace_line"][frame] = [
-                    frame_obj.skeleton_points[17].x_disp,
-                    int(frame_obj.trace_point.y),
-                ]
-            else:
-                self.lines["trace_line"][frame] = None
-
-        for frame, frame_obj in self.frames.items():
-            if frame_obj.detected:
-                self.lines["center_of_gravity_line"][frame] = [
-                    frame_obj.skeleton_points[17].x_disp,
-                    int(frame_obj.center_of_gravity.y),
-                ]
-            else:
-                self.lines["center_of_gravity_line"][frame] = None
-
-    def draw_charts(self, image, frame_number):
-
-        chart_index = 0
-        charts_lines_to_draw = []
-
-        for chart_name, chart_state_data in self.charts_state.items():
-            state, chart_range, rev_chart = chart_state_data
-            if state:
-
-                # rysowanie podkładu
-
-                self.draw_chart_base(
-                    image,
-                    chart_name,
-                    chart_index,
-                    chart_range,
-                    frame_number=frame_number,
-                )
-
-                # zebranie danych do rysowania lini wykresu
-                # pobranie danych
-                data_to_draw = self.charts[chart_name]
-
-                frames = sorted(i for i in data_to_draw.keys() if type(i) == int)
-
-                tmp_store = []
-                for frame in frames[1:]:
-
-                    pos_1 = self.charts[chart_name][frame - 1]
-                    pos_2 = self.charts[chart_name][frame]
-
-                    # jeśli dane dla obu klatek występują to:
-                    if all((pos_1, pos_2)):
-                        # korekta - odwócenie wykresu do góry nogami, przesunięcie w pionie i ograniczenie zakresu
-
-                        delta_y = (
-                            self.chart_y_pos
-                            + chart_range[1]
-                            + chart_index * self.chart_height
-                        )
-
-                        pos_1 = (
-                            self.charts[chart_name][frame - 1][0],
-                            -1 * self.charts[chart_name][frame - 1][1] + delta_y,
-                        )
-                        pos_2 = (
-                            self.charts[chart_name][frame][0],
-                            -1 * self.charts[chart_name][frame][1] + delta_y,
-                        )
-
-                        tmp_store.append((pos_1, pos_2))
-
-                charts_lines_to_draw.append(tmp_store)
-
-                chart_index += 1
-
-        # rysowanie linii wykresów
-        for line_to_draw in charts_lines_to_draw:
-            self.draw_line(image, line_to_draw, color=(255, 128, 0))
-
-    def draw_trace(self, image, frame_number):
-        # zebranie danych do rysowania lini wykresu
-        # pobranie danych
-        data_to_draw = self.lines["trace_line"]
-        lines_to_draw = []
-
-        frames = sorted(i for i in data_to_draw.keys() if type(i) == int)
-
-        tmp_store = []
-        for frame in frames[1:]:
-
-            pos_1 = self.lines["trace_line"][frame - 1]
-            pos_2 = self.lines["trace_line"][frame]
-
-            # jeśli dane dla obu klatek występują to:
-            if all((pos_1, pos_2)):
-
-                pos_1 = self.lines["trace_line"][frame - 1]
-                pos_2 = self.lines["trace_line"][frame]
-
-                tmp_store.append((pos_1, pos_2))
-
-        lines_to_draw.append(tmp_store)
-
-        # rysowanie linii trasy
-        for line_to_draw in lines_to_draw:
-            self.draw_line(image, line_to_draw, color=(137, 126, 23))
-
-        data_to_draw = self.lines["center_of_gravity_line"]
-        lines_to_draw = []
-
-        frames = sorted(i for i in data_to_draw.keys() if type(i) == int)
-
-        tmp_store = []
-        for frame in frames[1:]:
-
-            pos_1 = self.lines["center_of_gravity_line"][frame - 1]
-            pos_2 = self.lines["center_of_gravity_line"][frame]
-
-            # jeśli dane dla obu klatek występują to:
-            if all((pos_1, pos_2)):
-
-                pos_1 = self.lines["center_of_gravity_line"][frame - 1]
-                pos_2 = self.lines["center_of_gravity_line"][frame]
-
-                tmp_store.append((pos_1, pos_2))
-
-        lines_to_draw.append(tmp_store)
-
-        # rysowanie linii środka cieżkości
-        # na razie nie rysuje - do analizy czy nie lepiej pokazać rzeczywistą odległość kostka- biodro, zamiast odległosci w pionie, bo na wykresie myli
-        # for line_to_draw in lines_to_draw:
-        #     self.draw_line(image, line_to_draw, color=(20, 126, 23))
+            self.charts[chart_name].chart_points = tmp_chart_points_dict
 
     def draw_line(self, image, line_to_draw, color=(0, 0, 0), thickness=3):
         # rysowanie wykresu
@@ -755,120 +592,236 @@ class Clip:
 
             cv2.line(image, pos_2, pos_1, color, thickness)
 
-    def draw_chart_base(
-        self,
-        image,
-        chart_name,
-        chart_index,
-        chart_range,
-        color=(115, 200, 221, 50),
-        frame_number=None,
-    ):
+    def draw_charts(self, image, draws_states, frame_number):
+
+        # ustalenie które wykresy mają być wyświetlane na podstawie obiektu Draws_states
+        # ustalenie ilości wykresów  i zestawienie obiektów wykresów
+
+        charts_to_draw = []
+
+        # iteracja po dostępnych obiektach wykresów i porównanie z obiektem stan druku 'draws_states'
+        for chart_name in self.charts.keys():
+            chart_name_draw_state_atr = chart_name+'_draw_state'
+            if getattr(draws_states, chart_name_draw_state_atr) == True:
+                charts_to_draw.append(self.charts[chart_name])
+
+        charts_amount = len(charts_to_draw)
+
+        if charts_amount == 0: return
+
+        # rysowanie podkładu i lini ograniczajacych
+
+        if draws_states.charts_background_draw_state == True:
+            self.draw_charts_base(image, charts_amount)
+
+        # rysowanie lini wykresów
+
+        for chart_number, chart in enumerate(charts_to_draw):
+
+            chart.generate_line_data(self.chart_y_pos, chart_number)
+            line_to_draw = chart.chart_line
+
+            # setup
+            line_thickness = 2
+            line_color = (255, 128, 0)
+
+            self.draw_line(image, line_to_draw, color=line_color, thickness=line_thickness)
+
+        # rysowanie opisów
+
+        if draws_states.charts_descriptions_draw_state == True:
+
+            for chart_number, chart in enumerate(charts_to_draw):
+
+                self.draw_charts_descriptions(image, chart_number, chart, frame_number)
+
+    def generate_lines_data(self):
+
+        # tworzenie obiektu lini
+        for line_name, line_setup in self.avilable_lines.items():
+            # sam pusty obiekt i jego setup:
+            self.lines[line_name] = Line(
+                name=line_name,
+                line_description = line_setup["line_description"],
+                color = line_setup["line_color"]
+            )
+
+            # dodanje do lini punkty z kolejnych klatek:
+            tmp_line_points_dict = {}
+
+            for frame_number, frame_obj in self.frames.items():
+                if frame_obj.detected:  # jeśli szkielet został wykryty na klatce
+
+                    # tworzenie nazwy zmiennej do pobrania z obiektu klatki
+                    frame_variable_name = line_setup["frame_atr"]
+
+                    x_pos = frame_obj.skeleton_points[17].x_disp
+                    y_pos = int(getattr(frame_obj, frame_variable_name).y_disp)
+
+                    tmp_line_points_dict[frame_number] = Point(x_pos, y_pos)
+
+                else:
+                    pass
+
+            self.lines[line_name].line_points = tmp_line_points_dict
+
+    def draw_charts_base(self, image, charts_amount):
 
         # rysowanie tła wykresu
-        background_delta_y_1 = self.chart_y_pos + (chart_index) * self.chart_height
-        background_delta_y_2 = self.chart_y_pos + (chart_index + 1) * self.chart_height
+        # ustalenie położenia w pionie
+        background_delta_y_1 = self.chart_y_pos
+        background_delta_y_2 = self.chart_y_pos + (charts_amount  * self.chart_height)
 
-        # podklad=[[0,background_delta_y_1],[0,background_delta_y_2],
-        #          [image.shape[1],background_delta_y_2],
-        #          [image.shape[1],background_delta_y_1]]
+        # ustalenie współrzędnych punktów wykresu
+        x, y, w, h = (
+            0,
+            background_delta_y_1,
+            image.shape[1],
+            background_delta_y_2 - background_delta_y_1,
+        )
+        sub_img = image[y : y + h, x : x + w]
+        white_rect = np.ones(sub_img.shape, dtype=np.uint8) * 255
 
-        # podklad = np.array(podklad)
-        if self.draw_background:
-            x, y, w, h = (
-                0,
-                background_delta_y_1,
-                image.shape[1],
-                background_delta_y_2 - background_delta_y_1,
-            )
-            sub_img = image[y : y + h, x : x + w]
-            white_rect = np.ones(sub_img.shape, dtype=np.uint8) * 255
+        res = cv2.addWeighted(sub_img, 0.5, white_rect, 0.5, 1.0)
 
-            res = cv2.addWeighted(sub_img, 0.5, white_rect, 0.5, 1.0)
+        # Putting the image back to its position
+        image[y : y + h, x : x + w] = res
 
-            # Putting the image back to its position
-            image[y : y + h, x : x + w] = res
-            # cv2.fillPoly(image, [podklad], color)
-
-        # rysowanie lini ograniczajacych wykres
+        # rysowanie linii ograniczajacych wykres
+        # setup
         chart_frame_color = (0, 0, 0)
-        pos_1 = 0, background_delta_y_1
-        pos_2 = image.shape[1], background_delta_y_1
+        chart_frame_thickness = 2
 
-        cv2.line(image, pos_1, pos_2, chart_frame_color, thickness=2)
+        for line_numer in range(charts_amount+1):
 
-        pos_1 = 0, background_delta_y_2
-        pos_2 = image.shape[1], background_delta_y_2
+            pos_1 = 0, background_delta_y_1 + (line_numer * self.chart_height)
+            pos_2 = image.shape[1], background_delta_y_1 + (line_numer * self.chart_height)
 
-        cv2.line(image, pos_1, pos_2, chart_frame_color, thickness=2)
+            cv2.line(image, pos_1, pos_2, chart_frame_color, thickness=chart_frame_thickness)
+
+    def draw_charts_descriptions(self, image, chart_number, chart, frame_number):
 
         # opis wykresu
 
-        # object details
-        # tytuł
+        # setup
         font = cv2.FONT_HERSHEY_SIMPLEX
         fontScale = 0.8
         text_color = (0, 0, 0)
         thickness = 2
-        try:
-            text = unidecode(
-                self.charts[chart_name]["name"]
-            )  # - do zmiany tak żeby się wyświetlały polskie znaki
-            lok_opis_wykresu = (20, background_delta_y_1 + 25)
-        except:
-            pass
+
+        # ustalenie tekstu głównego opisu do wyświetlenia i jego pozycji
+        # - do zmiany tak żeby się wyświetlały polskie znaki
+        main_description = unidecode(chart.chart_description)
+
+        x_pos = 20
+        y_pos = self.chart_y_pos + chart_number * self.chart_height + 25
+
+        main_description_loc = (x_pos, y_pos)
+
         cv2.putText(
-            image, text, lok_opis_wykresu, font, fontScale, text_color, thickness
+            image,
+            main_description,
+            main_description_loc,
+            font,
+            fontScale,
+            text_color,
+            thickness,
         )
 
-        # opisy, tylko jeśli na ekranie jest wykryty szkielet
-        if self.frames[frame_number].detected:
-            # wartość
+        # opisy, tylko jeśli na ekranie jest wykryty szkielet tj. obiekt chart ma dane dla klatki
+        try:
+            x_pos = chart.chart_points[frame_number].x_disp + 20
+            y_pos = self.chart_y_pos + (chart_number + 1) * self.chart_height - 20
 
-            try:
-                lok_opis_wykresu = (
-                    self.charts[chart_name][frame_number][0] + 20,
-                    background_delta_y_1 + 25,
-                )
-            except:
-                text = "x"
-            text = str(self.charts[chart_name][frame_number][1])
+            chart_value_description = str(chart.chart_points[frame_number].y_disp)
+
+            chart_value_description_loc = (x_pos, y_pos)
+
             cv2.putText(
-                image, text, lok_opis_wykresu, font, fontScale, text_color, thickness
+                image,
+                chart_value_description,
+                chart_value_description_loc,
+                font,
+                fontScale,
+                text_color,
+                thickness,
             )
+        except:
+            pass
 
-            # rysowanie linie wiodącej dla klatki
-            if self.draw_leading_line and frame_number:
+    def draw_leading_line(self, image, frame_number):
+        # rysowanie linie wiodącej dla klatki, jeśli w ogóle jest szkielet
+        if self.frames[frame_number].detected == True:
 
-                leading_line_color = (0, 0, 0)
+            # leading line setup
+            leading_line_color = (0, 0, 0)
+            leading_line_thickness= 2
 
-                pos_1 = self.charts[chart_name][frame_number][0], 0
-                pos_2 = self.charts[chart_name][frame_number][0], image.shape[0]
+            pos_1 = self.frames[frame_number].trace_point.x_disp, 0
+            pos_2 = self.frames[frame_number].trace_point.x_disp, image.shape[0]
 
-                cv2.line(image, pos_1, pos_2, leading_line_color, thickness=2)
+            cv2.line(image, pos_1, pos_2, leading_line_color, thickness=leading_line_thickness)
+
+    def draw_lines(self, image, draws_states):
+
+        # ustalenie które linie mają być wyświetlane na podstawie obiektu Draws_states
+        # ustalenie ilości lini  i zestawienie obiektów wykresów
+
+        # iteracja po dostępnych obiektach lini i porównanie z obiektem stan druku 'draws_states'
+        for line_name, line in self.lines.items():
+            line_name_draw_state_atr = line_name + '_draw_state'
+            if getattr(draws_states, line_name_draw_state_atr) == True:
+
+                line.generate_line_data()
+                line_to_draw = line.line_line
+
+                # setup
+                line_thickness = 3
+                line_color = line.line_color
+
+                self.draw_line(image, line_to_draw, color=line_color, thickness=line_thickness)
+
+        # do analizy czy nie lepiej pokazać rzeczywistą odległość kostka- biodro, 
+        # zamiast odległosci w pionie, bo na wykresie myli
 
     def display_frame(self, frame_number, draws_states):
+
+        # tworzenie gównej klatki
 
         self.cap.set(1, frame_number)
 
         _, image = self.cap.read()
 
-        if draws_states.main_skeleton_right_draw_state:
+        # rysowanie lini trasy/ środek ciężkości itp.
+        
+        self.draw_lines(image, draws_states)
+
+        # rysowanie lini pomocniczej
+
+        if draws_states.leading_line_draw_state == True:
+            self.draw_leading_line(image, frame_number)
+
+        # rysowanie szkieletów na głównym widoku
+        if draws_states.main_skeleton_right_draw_state == True:
             self.frames[frame_number].draw_skeleton_right_side(image)
 
-        if draws_states.main_skeleton_left_draw_state:
+        if draws_states.main_skeleton_left_draw_state == True:
             self.frames[frame_number].draw_skeleton_left_side(image)
-            
-        if draws_states.main_skeleton_draw_state:
+
+        if draws_states.main_skeleton_draw_state == True:
             self.frames[frame_number].draw_skeleton(image)
 
+        # rysowanie wykresów
+
+        self.draw_charts(image, draws_states, frame_number)
+
+        # rysowenie widoku boczego - do rozbudowania i ew. przeniesiebia wyżej
+
         if draws_states.side_frame_draw_state:
-            self.frames[frame_number].draw_side_view(image)
             self.frames[frame_number].draw_wheelbase_line(image)
+            self.frames[frame_number].draw_side_view(image)
 
-        self.draw_trace(image, frame_number)
-
-        self.draw_charts(image, frame_number)
+        self.montage_clip_image = image
 
         image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)  # convert frame to RGB
 
@@ -876,7 +829,7 @@ class Clip:
 
         self.image = Image.fromarray(image)
 
-    def make_video_clip(self):
+    def make_video_clip(self, draws_states):
 
         output_folder = "_clips"
 
@@ -890,14 +843,9 @@ class Clip:
 
         for frame_number in range(self.frames_amount - 1):
 
-            self.cap.set(1, frame_number)
-            _, image = self.cap.read()
+            self.display_frame(frame_number, draws_states)
 
-            self.frames[frame_number].draw_skeleton_right_side(image)
-
-            self.draw_charts(image, frame_number)
-
-            out.write(image)  # writing the video frame
+            out.write(self.montage_clip_image)  # writing the video frame
 
         print(f"{self.name} gotowe.")
 
@@ -999,9 +947,100 @@ class Frame_widgets:
                             'side_head_leading_line_draw_state']
 
 class Chart:
-    def __init__(self, name, name_display=None):
-        self.name           =   name
-        self.name_display   =   name_display if name_display else self.name
+    def __init__(self,
+                 name,
+                 chart_description=None,
+                 range_min=None,
+                 range_max=None,
+                 reverse=None):
+
+        # podstawowe dane ustawień wykresu
+        self.name = name
+        self.chart_description = chart_description
+        self.range_min = range_min
+        self.range_max = range_max
+        self.reverse = reverse
+
+        self.chart_height = self.range_max - self.range_min
+
+        # dane wykresu
         self.chart_points   =   None
+        self.chart_line     =   []
 
+    def generate_line_data(self, chart_y_pos=0, chart_number=0):
+        #  zebranie danych do rysowania lini wykresu
+        # pobranie danych
 
+        self.chart_line.clear()
+
+        frames_numbers = sorted(i for i in self.chart_points.keys())
+
+        for frame in frames_numbers[1:]:
+
+            # jeśli dane dla obu klatek występują to:
+            try:
+                pos_1 = self.chart_points[frame - 1]
+                pos_2 = self.chart_points[frame]
+
+                if self.reverse == True:
+                    # jeśli wykres ma być odwrócont tj. mniejsze wartosci u góry:
+                    # korekta - odwócenie wykresu do góry nogami,
+                    # przesunięcie w pionie i ograniczenie zakresu
+                    delta_y = chart_y_pos - self.range_min + (chart_number * self.chart_height)
+
+                    pos_1 = (self.chart_points[frame - 1].x_disp,
+                            self.chart_points[frame - 1].y_disp + delta_y)
+                    
+                    pos_2 = (self.chart_points[frame].x_disp,
+                            self.chart_points[frame].y_disp + delta_y)
+                else:
+                    # korekta
+                    # przesunięcie w pionie i ograniczenie zakresu
+                    delta_y = chart_y_pos + self.range_max + (chart_number * self.chart_height)
+
+                    pos_1 = (self.chart_points[frame - 1].x_disp,
+                            -1 * self.chart_points[frame - 1].y_disp + delta_y)
+                    
+                    pos_2 = (self.chart_points[frame].x_disp,
+                            -1 * self.chart_points[frame].y_disp + delta_y)
+
+                self.chart_line.append((pos_1, pos_2))
+            except:
+                pass
+
+class Line:
+
+    def __init__(
+        self,
+        name,
+        line_description=None,
+        color=(0,0,0)):
+
+        # podstawowe dane ustawień wykresu
+        self.name = name
+        self.line_description = line_description
+        self.line_color = color
+
+        # dane lini
+        self.line_points   =   None
+        self.line_line     =   []
+
+    def generate_line_data(self):
+        #  zebranie danych do rysowania lini 
+        # pobranie danych
+
+        self.line_line.clear()
+
+        frames_numbers = sorted(i for i in self.line_points.keys())
+
+        for frame in frames_numbers[1:]:
+
+            # jeśli dane dla obu klatek występują to:
+            try:
+                pos_1 = self.line_points[frame - 1].pos
+                pos_2 = self.line_points[frame].pos
+
+                self.line_line.append((pos_1, pos_2))
+
+            except:
+                pass

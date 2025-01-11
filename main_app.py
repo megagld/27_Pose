@@ -133,7 +133,7 @@ class Frame_right(tk.Frame):
         self.scale.set(self.master.frame_to_display)
 
     def make_clip(self):
-        self.master.clip.make_video_clip()
+        self.master.clip.make_video_clip(self.master.draws_states)
 
 class Frame_left(tk.Frame):
     def __init__(self, master: tk.Tk, **kwargs):
@@ -195,7 +195,7 @@ class Window(tk.Tk):
 
         # tworzy obiekt clipu
 
-        self.filename='PXL_20241218_121042417_001.mp4'
+        self.filename='VID_20241231_125439_005.mp4'
 
         self.frame_to_display=20
 
