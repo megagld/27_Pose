@@ -792,6 +792,12 @@ class Clip:
 
         _, image = self.cap.read()
 
+        # rysowenie widoku boczego
+
+        if draws_states.side_frame_draw_state:
+            self.frames[frame_number].draw_side_view(image)
+            self.frames[frame_number].draw_wheelbase_line(image)
+
         # rysowanie lini trasy/ środek ciężkości itp.
         
         self.draw_lines(image, draws_states)
@@ -814,12 +820,6 @@ class Clip:
         # rysowanie wykresów
 
         self.draw_charts(image, draws_states, frame_number)
-
-        # rysowenie widoku boczego - do rozbudowania i ew. przeniesiebia wyżej
-
-        if draws_states.side_frame_draw_state:
-            self.frames[frame_number].draw_wheelbase_line(image)
-            self.frames[frame_number].draw_side_view(image)
 
         self.montage_clip_image = image
 
@@ -1026,7 +1026,7 @@ class Line:
         self.line_line     =   []
 
     def generate_line_data(self):
-        #  zebranie danych do rysowania lini 
+        # zebranie danych do rysowania lini 
         # pobranie danych
 
         self.line_line.clear()
