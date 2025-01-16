@@ -381,23 +381,26 @@ class Frame:
 
             # cv2.line(image, (0,0), central_point.disp, (0,0,0), thickness=2)
 
-    def draw_side_view(self,image):
+    def draw_side_view(self,image, draws_states):
 
         # https://stackoverflow.com/questions/73130538/efficiently-rotate-image-and-paste-into-a-larger-image-using-numpy-and-opencv/
         # https://stackoverflow.com/questions/61516526/how-to-use-opencv-to-crop-circular-image
         # https://stackoverflow.com/questions/75554603/how-to-insert-a-picture-in-a-circle-using-opencv
 
+        # boczne okno może być wyświetlane tylko jeśli jest wykryty szkielet
         if self.detected:
+
             # określenie zakresu do wyświetlenia
-            wielkosc_wycinka=200
+            self.calculate_side_view_size()
+                        
+            # ustalenie punktów wycinka
             pose_y_cor = 0
-            
             x, y, w, h = (
-                int(self.trace_point.x-wielkosc_wycinka),
-                int(self.trace_point.y-pose_y_cor-wielkosc_wycinka),
-                wielkosc_wycinka*2,
-                wielkosc_wycinka*2,
-            )
+                self.trace_point.x_disp-self.side_view_size,
+                self.trace_point.y_disp-pose_y_cor-self.side_view_size,
+                self.side_view_size*2,
+                self.side_view_size*2)
+
             sub_img = image[y : y + h, x : x + w]
             white_rect = np.ones(sub_img.shape, dtype=np.uint8) * 255
 
@@ -406,16 +409,19 @@ class Frame:
 
             bike_rotation = self.bike_stack_reach_ang - self.stack_reach_ang
 
-            rot_res = cv2.getRotationMatrix2D((wielkosc_wycinka,wielkosc_wycinka), bike_rotation, 1)
+            rot_res = cv2.getRotationMatrix2D((self.side_view_size,self.side_view_size), bike_rotation, 1)
 
-            img_rot = cv2.warpAffine(res,rot_res,(2*wielkosc_wycinka,2*wielkosc_wycinka))
+            img_rot = cv2.warpAffine(res,rot_res,(2*self.side_view_size,2*self.side_view_size))
 
             # wklejenie zdjęcia na boku
 
-            x_place = image.shape[1]-2*wielkosc_wycinka
+            x_place = image.shape[1]-2*self.side_view_size
             y_place = 0
 
             image[y_place : y_place + h, x_place : x_place + w] = img_rot
+
+    def calculate_side_view_size(self):
+        self.side_view_size=200  
 
 class Clip:
     def __init__(self, vid_name):
@@ -795,7 +801,7 @@ class Clip:
         # rysowenie widoku boczego
 
         if draws_states.side_frame_draw_state:
-            self.frames[frame_number].draw_side_view(image)
+            self.frames[frame_number].draw_side_view(image, draws_states)
             self.frames[frame_number].draw_wheelbase_line(image)
 
         # rysowanie lini trasy/ środek ciężkości itp.
