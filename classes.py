@@ -352,7 +352,7 @@ class Frame:
 
         return ang_to_add
 
-    def draw_wheelbase_line(self, image):
+    def draw_wheelbase_line(self, image, delta_x=0, delta_y=0):
 
         if self.detected:
             size_factor=self.stack_reach_len/self.bike_stack_reach_len
@@ -369,23 +369,19 @@ class Frame:
             center_of_back_wheel=rotate_point(central_point, center_of_back_wheel, math.radians(bike_rotation))
             center_of_front_wheel=rotate_point(central_point, center_of_front_wheel, math.radians(bike_rotation))
 
+            center_of_back_wheel=transform_point(center_of_back_wheel, delta_x, delta_y)
+            center_of_front_wheel=transform_point(center_of_front_wheel, delta_x, delta_y)
+
             # rysuj linie bazy kół
 
-            cv2.line(image, center_of_back_wheel.pos_disp, center_of_front_wheel.pos_disp, (0,0,0), thickness=2)
+            cv2.line(image, center_of_back_wheel.pos_disp, center_of_front_wheel.pos_disp, (0,0,0), thickness=3)
 
             # rysuje koła na końcu bazy kół
 
             # cv2.circle(image, center_of_back_wheel.disp, int(self.bike_wheel_size/2*size_factor), (0,0,0), thickness=2)
             # cv2.circle(image, center_of_front_wheel.disp, int(self.bike_wheel_size/2*size_factor), (0,0,0), thickness=2)
 
-
-            # cv2.line(image, (0,0), central_point.disp, (0,0,0), thickness=2)
-
-    def draw_side_view(self,image, draws_states):
-
-        # https://stackoverflow.com/questions/73130538/efficiently-rotate-image-and-paste-into-a-larger-image-using-numpy-and-opencv/
-        # https://stackoverflow.com/questions/61516526/how-to-use-opencv-to-crop-circular-image
-        # https://stackoverflow.com/questions/75554603/how-to-insert-a-picture-in-a-circle-using-opencv
+    def draw_side_view(self, image, draws_states):
 
         # boczne okno może być wyświetlane tylko jeśli jest wykryty szkielet
         if self.detected:
@@ -400,28 +396,71 @@ class Frame:
                 self.trace_point.y_disp-pose_y_cor-self.side_view_size,
                 self.side_view_size*2,
                 self.side_view_size*2)
+            
+            # określenie średnicy  koła do wyświetlenia bocznego obrazu
 
-            sub_img = image[y : y + h, x : x + w]
-            white_rect = np.ones(sub_img.shape, dtype=np.uint8) * 255
+            x_circle = image.shape[1]- self.side_view_size
+            y_circle = self.side_view_size
 
-            # res = cv2.addWeighted(sub_img, 0.5, white_rect, 0.5, 1.0)
-            res = cv2.addWeighted(sub_img, 1, white_rect, 0, 1.0)
+            # obraz boczny
+
+            # maska dla obrazu bocznego
+
+            sub_mask_rect = np.ones(image.shape, dtype=np.uint8) * 0
+
+            cv2.circle(sub_mask_rect,(x_circle,y_circle),self.side_view_size, (255,255,255),-1)
+
+            # wycięcie obrazu bocznego z głównej klatki image
+
+            sub_crop_rect = image[y : y + h, x : x + w].copy()
+            
+            sub_rect = np.ones(image.shape, dtype=np.uint8) * 0
+
+            # rysowanie elementów wg draws_states
+
+            self.draw_side_view_items(sub_crop_rect, 
+                                      draws_states, 
+                                      delta_x = -1 * x, 
+                                      delta_y = -1 * y)
+
+            # obrót wycinka
 
             bike_rotation = self.bike_stack_reach_ang - self.stack_reach_ang
 
             rot_res = cv2.getRotationMatrix2D((self.side_view_size,self.side_view_size), bike_rotation, 1)
 
-            img_rot = cv2.warpAffine(res,rot_res,(2*self.side_view_size,2*self.side_view_size))
+            img_rot = cv2.warpAffine(sub_crop_rect,rot_res,(2*self.side_view_size,2*self.side_view_size))
 
-            # wklejenie zdjęcia na boku
+            # wklejenie zdjęcia na boku na czarny podkład sub_rect
 
             x_place = image.shape[1]-2*self.side_view_size
             y_place = 0
 
-            image[y_place : y_place + h, x_place : x_place + w] = img_rot
+            sub_rect[y_place : y_place + h, x_place : x_place + w] = img_rot
+
+            # wycinanie bocznego rysunku wg maski
+
+            result = np.where(sub_mask_rect==0, image, sub_rect)
+
+            # wklejanie rezultatu na główny obraz
+
+            x,y,_ = image.shape
+            image[0:x, 0:y] = result
+
+            # rysowanie ramki wokół bocznego rysunka
+
+            cv2.circle(image,(x_circle,y_circle),self.side_view_size, (0,0,0),5)
+
+
 
     def calculate_side_view_size(self):
-        self.side_view_size=200  
+        self.side_view_size=250  
+
+    def draw_side_view_items(self, sub_crop_rect, draws_states, delta_x=0, delta_y=0):
+
+        if draws_states.side_wheel_base_line_draw_state:
+            self.draw_wheelbase_line(sub_crop_rect, delta_x, delta_y)
+
 
 class Clip:
     def __init__(self, vid_name):
@@ -802,7 +841,7 @@ class Clip:
 
         if draws_states.side_frame_draw_state:
             self.frames[frame_number].draw_side_view(image, draws_states)
-            self.frames[frame_number].draw_wheelbase_line(image)
+            
 
         # rysowanie lini trasy/ środek ciężkości itp.
         
@@ -834,6 +873,7 @@ class Clip:
         self.image = image
 
         self.image = Image.fromarray(image)
+
 
     def make_video_clip(self, draws_states):
 

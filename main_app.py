@@ -5,6 +5,7 @@ import ttkbootstrap as tb
 from PIL import ImageTk
 import classes
 from timeit import default_timer as timer
+import importlib
 
 
 class CanvasImage(tk.Canvas):
@@ -90,7 +91,7 @@ class Frame_right(tk.Frame):
         self.var = None
 
         self.canvas = CanvasImage(self, relief='sunken', bd=2)
-        tk.Button(self, text='ładuj obraz', comman=self.canvas.open_image).pack()
+        tk.Button(self, text='przeładuj klasę classes', comman=self.reload).pack()
         tk.Button(self, text='przeładuj obraz', comman=self.canvas.update_view).pack()
         tk.Button(self, text='frame count +', comman=self.frame_cnt_forward).pack()
         tk.Button(self, text='frame count -', comman=self.frame_cnt_back).pack()
@@ -105,6 +106,11 @@ class Frame_right(tk.Frame):
         self.scale.pack(side="top", fill="x", expand=False)
 
         self.canvas.pack(expand=True, fill='both', padx=10, pady=10)
+
+
+    def reload(self):
+        importlib.reload(classes) 
+        self.master.clip=classes.Clip(self.master.filename)
 
     def update_view(self,x) -> None:
         pass
@@ -195,7 +201,7 @@ class Window(tk.Tk):
 
         # tworzy obiekt clipu
 
-        self.filename='VID_20241231_125439_005.mp4'
+        self.filename='VID_20241231_125439_002.mp4'
 
         self.frame_to_display=20
 
