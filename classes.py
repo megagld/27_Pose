@@ -58,6 +58,9 @@ def get_mid(kpts, sk_id_1, sk_id_2):
 
     return Point((pos_x_2 + pos_x_1) / 2, (pos_y_2 + pos_y_1) / 2)
 
+
+
+
 class Point:
     def __init__(self, pos_x, pos_y, sk_id=None):
         self.sk_id = sk_id
@@ -352,39 +355,13 @@ class Frame:
 
         return ang_to_add
 
-    def draw_wheelbase_line(self, image, delta_x=0, delta_y=0):
-
-        if self.detected:
-            size_factor=self.stack_reach_len/self.bike_stack_reach_len
-
-            central_point           = self.trace_point
-            center_of_back_wheel    = transform_point(central_point, -self.bike_chain_stay*size_factor, 0)
-            center_of_front_wheel   = transform_point(central_point, (-self.bike_chain_stay+self.bike_wheel_base)*size_factor, 0)
-            
-            # obliczenie kąta obrotu roweru w stosunku do poziomu
-            # wartość dodatnia oznacza obrót zgodnie z ruchem wskazówek zegara
-
-            bike_rotation = self.bike_stack_reach_ang - self.stack_reach_ang
-
-            center_of_back_wheel=rotate_point(central_point, center_of_back_wheel, math.radians(bike_rotation))
-            center_of_front_wheel=rotate_point(central_point, center_of_front_wheel, math.radians(bike_rotation))
-
-            center_of_back_wheel=transform_point(center_of_back_wheel, delta_x, delta_y)
-            center_of_front_wheel=transform_point(center_of_front_wheel, delta_x, delta_y)
-
-            # rysuj linie bazy kół
-
-            cv2.line(image, center_of_back_wheel.pos_disp, center_of_front_wheel.pos_disp, (0,0,0), thickness=3)
-
-            # rysuje koła na końcu bazy kół
-
-            # cv2.circle(image, center_of_back_wheel.disp, int(self.bike_wheel_size/2*size_factor), (0,0,0), thickness=2)
-            # cv2.circle(image, center_of_front_wheel.disp, int(self.bike_wheel_size/2*size_factor), (0,0,0), thickness=2)
 
     def draw_side_view(self, image, draws_states):
 
         # boczne okno może być wyświetlane tylko jeśli jest wykryty szkielet
         if self.detected:
+            
+            self.bike_rotation = self.bike_stack_reach_ang - self.stack_reach_ang
 
             # określenie zakresu do wyświetlenia
             self.calculate_side_view_size()
@@ -425,9 +402,8 @@ class Frame:
 
             # obrót wycinka
 
-            bike_rotation = self.bike_stack_reach_ang - self.stack_reach_ang
 
-            rot_res = cv2.getRotationMatrix2D((self.side_view_size,self.side_view_size), bike_rotation, 1)
+            rot_res = cv2.getRotationMatrix2D((self.side_view_size,self.side_view_size), self.bike_rotation, 1)
 
             img_rot = cv2.warpAffine(sub_crop_rect,rot_res,(2*self.side_view_size,2*self.side_view_size))
 
@@ -460,6 +436,62 @@ class Frame:
 
         if draws_states.side_wheel_base_line_draw_state:
             self.draw_wheelbase_line(sub_crop_rect, delta_x, delta_y)
+        if draws_states.side_head_leading_line_draw_state:
+            self.draw_head_leading_line(sub_crop_rect, delta_x, delta_y)
+
+    def draw_head_leading_line(self, image, delta_x=0, delta_y=0):
+
+            if self.detected:
+
+                # określenie wsp. punktu głowy
+
+                crop_head_point = transform_point(self.skeleton_points[1], delta_x, delta_y)
+
+                # oblicznie wsp. rzednych lini wiodoącej na wycinku
+                x1 = x2 = crop_head_point.x_disp
+                y1 = 0
+                y2 = image.shape[1]
+
+                start_point = Point(x1, y1)
+                end_point = Point(x2, y2)
+
+                # obrót lini wiodocej wzgledem głowy o kąt obrotu roweru
+                start_point = rotate_point(crop_head_point,
+                                           start_point,
+                                           math.radians(self.bike_rotation))
+                end_point = rotate_point(crop_head_point,
+                                         end_point,
+                                         math.radians(self.bike_rotation))
+                
+                # rysuj linie wiodącą głowy
+                cv2.line(image, start_point.pos_disp, end_point.pos_disp, (0,0,0), thickness=2)
+
+    def draw_wheelbase_line(self, image, delta_x=0, delta_y=0):
+
+        if self.detected:
+            size_factor=self.stack_reach_len/self.bike_stack_reach_len
+
+            central_point           = self.trace_point
+            center_of_back_wheel    = transform_point(central_point, -self.bike_chain_stay*size_factor, 0)
+            center_of_front_wheel   = transform_point(central_point, (-self.bike_chain_stay+self.bike_wheel_base)*size_factor, 0)
+            
+            # obliczenie kąta obrotu roweru w stosunku do poziomu
+            # wartość dodatnia oznacza obrót zgodnie z ruchem wskazówek zegara
+
+            center_of_back_wheel=rotate_point(central_point, center_of_back_wheel, math.radians(self.bike_rotation))
+            center_of_front_wheel=rotate_point(central_point, center_of_front_wheel, math.radians(self.bike_rotation))
+
+            center_of_back_wheel=transform_point(center_of_back_wheel, delta_x, delta_y)
+            center_of_front_wheel=transform_point(center_of_front_wheel, delta_x, delta_y)
+
+            # rysuj linie bazy kół
+
+            cv2.line(image, center_of_back_wheel.pos_disp, center_of_front_wheel.pos_disp, (0,0,0), thickness=3)
+
+            # rysuje koła na końcu bazy kół
+
+            # cv2.circle(image, center_of_back_wheel.disp, int(self.bike_wheel_size/2*size_factor), (0,0,0), thickness=2)
+            # cv2.circle(image, center_of_front_wheel.disp, int(self.bike_wheel_size/2*size_factor), (0,0,0), thickness=2)
 
 
 class Clip:
