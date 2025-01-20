@@ -1,6 +1,5 @@
 import os
 import json
-from turtle import setup
 import cv2
 import numpy as np
 import math
@@ -8,6 +7,7 @@ from unidecode import unidecode
 from PIL import Image, ImageTk
 from ffprobe import FFProbe
 from general_bm import letterbox_calc
+from functions import *
 
 def angle_between_vectors(u, v):
     dot_product = sum(i * j for i, j in zip(u, v))
@@ -58,9 +58,6 @@ def get_mid(kpts, sk_id_1, sk_id_2):
 
     return Point((pos_x_2 + pos_x_1) / 2, (pos_y_2 + pos_y_1) / 2)
 
-
-
-
 class Point:
     def __init__(self, pos_x, pos_y, sk_id=None):
         self.sk_id = sk_id
@@ -95,6 +92,9 @@ class Frame:
         self.center_of_bar      = None
         self.stack_reach_len    = None
         self.stack_reach_ang    = None
+        self.bike_rotation      = None
+        self.side_view_size     = None
+        self.size_factor        = None
 
         # real bike geometry
         self.bike_reach_len       = 485
@@ -141,6 +141,10 @@ class Frame:
             
             self.stack_reach_ang    = self.stack_reach_ang_calc(self.trace_point, 
                                                                 self.center_of_bar)
+            
+            self.calc_bike_rotation()
+            self.calc_side_view_size()
+            self.calc_size_factor()
 
     def organize_skeleton_points(self):
         # tworzy słownik ze współrzędnymi punktów szkieletu
@@ -188,7 +192,7 @@ class Frame:
 
             setattr(self, name, calculated_ang)
 
-    def draw_skeleton(self, image, skeleton_to_display=None, points_to_display=None):
+    def draw_skeleton(self, image, skeleton_to_display=None, points_to_display=None, delta_x=0, delta_y=0):
 
         if self.detected:
 
@@ -262,10 +266,13 @@ class Frame:
 
             for kid in key_points:
                 r, g, b = pose_kpt_color[kid]
+
+                # ustalenie wsp i przesunięcie punktów o delta_x delta_y
                 x_coord, y_coord = (
-                    self.skeleton_points[kid].x_disp,
-                    self.skeleton_points[kid].y_disp,
+                    self.skeleton_points[kid].x_disp + delta_x,
+                    self.skeleton_points[kid].y_disp + delta_y,
                 )
+
                 if not (x_coord % 640 == 0 or y_coord % 640 == 0):
                     if kid in points_to_display:
                         cv2.circle(
@@ -279,13 +286,15 @@ class Frame:
             for sk_id, sk in enumerate(skeleton, 1):
                 r, g, b = pose_limb_color[sk_id]
 
+                # ustalenie wsp i przesunięcie punktów o delta_x delta_y
+
                 pos1 = (
-                    self.skeleton_points[sk[0]].x_disp,
-                    self.skeleton_points[sk[0]].y_disp,
+                    self.skeleton_points[sk[0]].x_disp + delta_x,
+                    self.skeleton_points[sk[0]].y_disp + delta_y,
                 )
                 pos2 = (
-                    self.skeleton_points[sk[1]].x_disp,
-                    self.skeleton_points[sk[1]].y_disp,
+                    self.skeleton_points[sk[1]].x_disp + delta_x,
+                    self.skeleton_points[sk[1]].y_disp + delta_y,
                 )
 
                 if (
@@ -305,7 +314,7 @@ class Frame:
                 if sk in skeleton_to_display:
                     cv2.line(image, pos1, pos2, (int(r), int(g), int(b)), thickness=2)
 
-    def draw_skeleton_right_side(self, image):
+    def draw_skeleton_right(self, image, delta_x=0, delta_y=0):
         # rysuje prawą stronę szkieletu
         skeleton_right_side = [
             [17, 15],
@@ -320,9 +329,9 @@ class Frame:
 
         points_to_display = [1, 3, 5, 7, 9, 11, 13, 15, 17]
 
-        self.draw_skeleton(image, skeleton_right_side, points_to_display)
+        self.draw_skeleton(image, skeleton_right_side, points_to_display, delta_x=delta_x, delta_y=delta_y)
 
-    def draw_skeleton_left_side(self, image):
+    def draw_skeleton_left(self, image, delta_x=0, delta_y=0):
         # rysuje lewą stronę szkieletu
 
         skeleton_left_side = [
@@ -338,7 +347,7 @@ class Frame:
 
         points_to_display = [1, 2, 4, 6, 8, 10, 12, 14, 16]
 
-        self.draw_skeleton(image, skeleton_left_side, points_to_display)
+        self.draw_skeleton(image, skeleton_left_side, points_to_display, delta_x=delta_x, delta_y=delta_y)
     
     def stack_reach_ang_calc(self, trace_point, center_of_bar):
 
@@ -355,16 +364,12 @@ class Frame:
 
         return ang_to_add
 
-
     def draw_side_view(self, image, draws_states):
 
         # boczne okno może być wyświetlane tylko jeśli jest wykryty szkielet
         if self.detected:
-            
-            self.bike_rotation = self.bike_stack_reach_ang - self.stack_reach_ang
 
             # określenie zakresu do wyświetlenia
-            self.calculate_side_view_size()
                         
             # ustalenie punktów wycinka
             pose_y_cor = 0
@@ -373,8 +378,11 @@ class Frame:
                 self.trace_point.y_disp-pose_y_cor-self.side_view_size,
                 self.side_view_size*2,
                 self.side_view_size*2)
+            print('t'*10)
+            print(x,y, w, h)
+            print('w'*10)
             
-            # określenie średnicy  koła do wyświetlenia bocznego obrazu
+            # określenie średnicy koła do wyświetlenia bocznego obrazu
 
             x_circle = image.shape[1]- self.side_view_size
             y_circle = self.side_view_size
@@ -427,10 +435,16 @@ class Frame:
 
             cv2.circle(image,(x_circle,y_circle),self.side_view_size, (0,0,0),5)
 
-
-
-    def calculate_side_view_size(self):
+    def calc_side_view_size(self):
         self.side_view_size=250  
+
+    def calc_bike_rotation(self):
+        self.bike_rotation = self.bike_stack_reach_ang - self.stack_reach_ang
+
+    def calc_size_factor(self):
+        # temat do ogarnięcia!!!!
+        self.size_factor = 0.15
+        # self.size_factor=self.stack_reach_len/self.bike_stack_reach_len
 
     def draw_side_view_items(self, sub_crop_rect, draws_states, delta_x=0, delta_y=0):
 
@@ -438,6 +452,12 @@ class Frame:
             self.draw_wheelbase_line(sub_crop_rect, delta_x, delta_y)
         if draws_states.side_head_leading_line_draw_state:
             self.draw_head_leading_line(sub_crop_rect, delta_x, delta_y)
+        if draws_states.side_skeleton_draw_state:
+            self.draw_skeleton(sub_crop_rect, delta_x=delta_x, delta_y=delta_y)
+        if draws_states.side_skeleton_right_draw_state:
+            self.draw_skeleton_right(sub_crop_rect, delta_x=delta_x, delta_y=delta_y)
+        if draws_states.side_skeleton_left_draw_state:
+            self.draw_skeleton_left(sub_crop_rect, delta_x=delta_x, delta_y=delta_y)
 
     def draw_head_leading_line(self, image, delta_x=0, delta_y=0):
 
@@ -469,11 +489,10 @@ class Frame:
     def draw_wheelbase_line(self, image, delta_x=0, delta_y=0):
 
         if self.detected:
-            size_factor=self.stack_reach_len/self.bike_stack_reach_len
-
+            
             central_point           = self.trace_point
-            center_of_back_wheel    = transform_point(central_point, -self.bike_chain_stay*size_factor, 0)
-            center_of_front_wheel   = transform_point(central_point, (-self.bike_chain_stay+self.bike_wheel_base)*size_factor, 0)
+            center_of_back_wheel    = transform_point(central_point, -self.bike_chain_stay*self.size_factor, 0)
+            center_of_front_wheel   = transform_point(central_point, (-self.bike_chain_stay+self.bike_wheel_base)*self.size_factor, 0)
             
             # obliczenie kąta obrotu roweru w stosunku do poziomu
             # wartość dodatnia oznacza obrót zgodnie z ruchem wskazówek zegara
@@ -485,14 +504,21 @@ class Frame:
             center_of_front_wheel=transform_point(center_of_front_wheel, delta_x, delta_y)
 
             # rysuj linie bazy kół
+            print('x'*10)
+            print(center_of_back_wheel.pos_disp)
+            print(center_of_front_wheel.pos_disp)
+            print(self.size_factor)
+            print(image.shape)
+            print(self.side_view_size)
+            print('-'*10)
+
 
             cv2.line(image, center_of_back_wheel.pos_disp, center_of_front_wheel.pos_disp, (0,0,0), thickness=3)
 
             # rysuje koła na końcu bazy kół
 
-            # cv2.circle(image, center_of_back_wheel.disp, int(self.bike_wheel_size/2*size_factor), (0,0,0), thickness=2)
-            # cv2.circle(image, center_of_front_wheel.disp, int(self.bike_wheel_size/2*size_factor), (0,0,0), thickness=2)
-
+            # cv2.circle(image, center_of_back_wheel.disp, int(self.bike_wheel_size/2*self.size_factor), (0,0,0), thickness=2)
+            # cv2.circle(image, center_of_front_wheel.disp, int(self.bike_wheel_size/2*self.size_factor), (0,0,0), thickness=2)
 
 class Clip:
     def __init__(self, vid_name):
@@ -874,7 +900,6 @@ class Clip:
         if draws_states.side_frame_draw_state:
             self.frames[frame_number].draw_side_view(image, draws_states)
             
-
         # rysowanie lini trasy/ środek ciężkości itp.
         
         self.draw_lines(image, draws_states)
@@ -886,10 +911,10 @@ class Clip:
 
         # rysowanie szkieletów na głównym widoku
         if draws_states.main_skeleton_right_draw_state == True:
-            self.frames[frame_number].draw_skeleton_right_side(image)
+            self.frames[frame_number].draw_skeleton_right(image)
 
         if draws_states.main_skeleton_left_draw_state == True:
-            self.frames[frame_number].draw_skeleton_left_side(image)
+            self.frames[frame_number].draw_skeleton_left(image)
 
         if draws_states.main_skeleton_draw_state == True:
             self.frames[frame_number].draw_skeleton(image)
