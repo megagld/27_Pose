@@ -374,10 +374,11 @@ class Frame:
             # ustalenie punktów wycinka
             pose_y_cor = 0
             x, y, w, h = (
-                self.trace_point.x_disp-self.side_view_size,
-                self.trace_point.y_disp-pose_y_cor-self.side_view_size,
-                self.side_view_size*2,
-                self.side_view_size*2)
+                self.trace_point.x_disp - self.side_view_size,
+                self.trace_point.y_disp - pose_y_cor - self.side_view_size,
+                self.side_view_size * 2,
+                self.side_view_size * 2,
+            )
 
             # określenie średnicy koła do wyświetlenia bocznego obrazu
 
@@ -394,7 +395,7 @@ class Frame:
 
             if draws_states.side_frame_background_draw_state:
 
-            # wycięcie obrazu bocznego z głównej klatki image
+                # wycięcie obrazu bocznego z głównej klatki image
 
                 if any((x < 0,
                     (x + self.side_view_size * 2) > image.shape[1],
@@ -408,7 +409,6 @@ class Frame:
                                         x : x + w].copy()
             else:
                 sub_crop_rect = np.ones((w,h,3), dtype=np.uint8) * 0
-
 
             sub_rect = np.ones(image.shape, dtype=np.uint8) * 0
 
@@ -468,7 +468,7 @@ class Frame:
 
         sub_crop_rect[-1 * ext_y_min : -1 * ext_y_min + tmp_h,
                         -1 * ext_x_min : -1 * ext_x_min + tmp_w] = tmp_sub_crop_rect
-        
+
         return sub_crop_rect
 
     def calc_side_view_size(self):
@@ -479,7 +479,7 @@ class Frame:
 
     def calc_size_factor(self):
         # temat do ogarnięcia!!!!
-        self.size_factor = 0.15
+        self.size_factor = 0.25
         # self.size_factor=self.stack_reach_len/self.bike_stack_reach_len
 
     def draw_side_view_items(self, sub_crop_rect, draws_states, delta_x=0, delta_y=0):
@@ -547,6 +547,19 @@ class Frame:
 
             # cv2.circle(image, center_of_back_wheel.disp, int(self.bike_wheel_size/2*self.size_factor), (0,0,0), thickness=2)
             # cv2.circle(image, center_of_front_wheel.disp, int(self.bike_wheel_size/2*self.size_factor), (0,0,0), thickness=2)
+
+    def draw_leading_line(self, image):
+        # rysowanie linie wiodącej dla klatki, jeśli w ogóle jest szkielet
+        if self.detected:
+
+            # leading line setup
+            leading_line_color = (255, 128, 0)
+            leading_line_thickness= 2
+
+            pos_1 = self.trace_point.x_disp, 0
+            pos_2 = self.trace_point.x_disp, image.shape[0]
+
+            cv2.line(image, pos_1, pos_2, leading_line_color, thickness=leading_line_thickness)
 
 class Clip:
     def __init__(self, vid_name):
@@ -880,19 +893,6 @@ class Clip:
         except:
             pass
 
-    def draw_leading_line(self, image, frame_number):
-        # rysowanie linie wiodącej dla klatki, jeśli w ogóle jest szkielet
-        if self.frames[frame_number].detected == True:
-
-            # leading line setup
-            leading_line_color = (255, 128, 0)
-            leading_line_thickness= 2
-
-            pos_1 = self.frames[frame_number].trace_point.x_disp, 0
-            pos_2 = self.frames[frame_number].trace_point.x_disp, image.shape[0]
-
-            cv2.line(image, pos_1, pos_2, leading_line_color, thickness=leading_line_thickness)
-
     def draw_lines(self, image, draws_states):
 
         # ustalenie które linie mają być wyświetlane na podstawie obiektu Draws_states
@@ -932,10 +932,10 @@ class Clip:
         
         self.draw_lines(image, draws_states)
 
-        # rysowanie lini pomocniczej
+        # rysowanie lini pomocniczej - wiodącej
 
         if draws_states.leading_line_draw_state == True:
-            self.draw_leading_line(image, frame_number)
+            self.frames[frame_number].draw_leading_line(image)
 
         # rysowanie szkieletów na głównym widoku
         if draws_states.main_skeleton_right_draw_state == True:

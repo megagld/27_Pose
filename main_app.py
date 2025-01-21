@@ -95,6 +95,9 @@ class Frame_right(tk.Frame):
         tk.Button(self, text='przeładuj obraz', comman=self.canvas.update_view).pack()
         tk.Button(self, text='frame count +', comman=self.frame_cnt_forward).pack()
         tk.Button(self, text='frame count -', comman=self.frame_cnt_back).pack()
+        tk.Button(self, text='bike rotation +', comman=self.bike_rotation_plus).pack()
+        tk.Button(self, text='bike rotation -', comman=self.bike_rotation_minus).pack()
+
         tk.Button(self, text='make clip', comman=self.make_clip).pack()
 
         self.scale=ttk.Scale(self, 
@@ -135,6 +138,18 @@ class Frame_right(tk.Frame):
     def frame_cnt_back(self):
         self.master.frame_to_display-=1
         self.master.frame_to_display=max(self.master.frame_to_display, self.master.clip.scale_range_min)
+        self.canvas.open_image()
+        self.scale.set(self.master.frame_to_display)
+
+    def bike_rotation_plus(self):
+        self.master.clip.frames[self.master.frame_to_display].bike_rotation+=1
+
+        self.canvas.open_image()
+        self.scale.set(self.master.frame_to_display)
+
+    def bike_rotation_minus(self):
+        self.master.clip.frames[self.master.frame_to_display].bike_rotation-=1
+
         self.canvas.open_image()
         self.scale.set(self.master.frame_to_display)
 
