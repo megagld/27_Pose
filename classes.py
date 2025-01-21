@@ -101,7 +101,7 @@ class Frame:
         self.bike_stack_len       = 645
         self.bike_stack_reach_len = (self.bike_reach_len**2+self.bike_stack_len**2)**0.5  # wprowadzić pomiar albo dopasować
         self.bike_stack_reach_ang = math.degrees(math.atan(self.bike_stack_len/self.bike_reach_len))  # wprowadzić pomiar albo dopasować
-        
+
         self.bike_real_s_r_ang    = 10  #korekta kąta ze względu na to że pomiar dotyczy nie dokładnie reachu i stacku
         self.bike_stack_reach_ang+= self.bike_real_s_r_ang
 
@@ -118,13 +118,13 @@ class Frame:
     def update_data(self):
         if self.detected:
 
-            # organizuje pomierzone punkty kpts w słownik gdzie key= id szkieletu, a value= obiekt Point 
+            # organizuje pomierzone punkty kpts w słownik gdzie key= id szkieletu, a value= obiekt Point
             self.organize_skeleton_points()
-            
+
             # oblicza kąty między zadanymi punktami, zestawia je w zmiennych self.___.ang
             self.calc_ang()
 
-            # DO ANALIZY CZY LEPIEJ DAĆ ŚRODEK MIĘDZY PUNKTAMI CZY PUNKTY Z JEDNEJ STRONY 
+            # DO ANALIZY CZY LEPIEJ DAĆ ŚRODEK MIĘDZY PUNKTAMI CZY PUNKTY Z JEDNEJ STRONY
             # skorygować o zmianę jeśli film jest nagrywany z lewej strony roweru
             # może dodać zmienną - info o kierunku poruszania sie roweru i na tej podstawie która strona jest nagrywana
 
@@ -138,10 +138,10 @@ class Frame:
 
             self.stack_reach_len    = get_dist(self.trace_point, 
                                                self.center_of_bar)
-            
+
             self.stack_reach_ang    = self.stack_reach_ang_calc(self.trace_point, 
                                                                 self.center_of_bar)
-            
+
             self.calc_bike_rotation()
             self.calc_side_view_size()
             self.calc_size_factor()
@@ -154,11 +154,11 @@ class Frame:
         for sk_id in range(1, 18):
             pos_x   =   (self.kpts[(sk_id - 1) * steps])     + self.left_ofset
             pos_y   =   (self.kpts[(sk_id - 1) * steps + 1]) + self.top_offset
-            
+
             self.skeleton_points[sk_id] = Point(pos_x, 
                                                 pos_y, 
                                                 sk_id)
-            
+
     def calc_ang(self):
         # tworzy słownik z danymi do wykresów
 
@@ -348,7 +348,7 @@ class Frame:
         points_to_display = [1, 2, 4, 6, 8, 10, 12, 14, 16]
 
         self.draw_skeleton(image, skeleton_left_side, points_to_display, delta_x=delta_x, delta_y=delta_y)
-    
+
     def stack_reach_ang_calc(self, trace_point, center_of_bar):
 
         # pomiar kąta względem poziomu - przeciwnie do wskazówek zegara
@@ -370,7 +370,7 @@ class Frame:
         if self.detected:
 
             # określenie zakresu do wyświetlenia
-                        
+
             # ustalenie punktów wycinka
             pose_y_cor = 0
             x, y, w, h = (
@@ -378,10 +378,7 @@ class Frame:
                 self.trace_point.y_disp-pose_y_cor-self.side_view_size,
                 self.side_view_size*2,
                 self.side_view_size*2)
-            print('t'*10)
-            print(x,y, w, h)
-            print('w'*10)
-            
+
             # określenie średnicy koła do wyświetlenia bocznego obrazu
 
             x_circle = image.shape[1]- self.side_view_size
@@ -395,10 +392,24 @@ class Frame:
 
             cv2.circle(sub_mask_rect,(x_circle,y_circle),self.side_view_size, (255,255,255),-1)
 
+            if draws_states.side_frame_background_draw_state:
+
             # wycięcie obrazu bocznego z głównej klatki image
 
-            sub_crop_rect = image[y : y + h, x : x + w].copy()
-            
+                if any((x < 0,
+                    (x + self.side_view_size * 2) > image.shape[1],
+                    y < 0,
+                    (x + self.side_view_size * 2) > image.shape[1])):
+
+                    sub_crop_rect = self.crop_extended(image, x, y, w, h)
+
+                else:
+                    sub_crop_rect = image[y : y + h,
+                                        x : x + w].copy()
+            else:
+                sub_crop_rect = np.ones((w,h,3), dtype=np.uint8) * 0
+
+
             sub_rect = np.ones(image.shape, dtype=np.uint8) * 0
 
             # rysowanie elementów wg draws_states
@@ -409,7 +420,6 @@ class Frame:
                                       delta_y = -1 * y)
 
             # obrót wycinka
-
 
             rot_res = cv2.getRotationMatrix2D((self.side_view_size,self.side_view_size), self.bike_rotation, 1)
 
@@ -434,6 +444,32 @@ class Frame:
             # rysowanie ramki wokół bocznego rysunka
 
             cv2.circle(image,(x_circle,y_circle),self.side_view_size, (0,0,0),5)
+
+    def crop_extended(self, image, x, y, w, h):
+
+        sub_crop_rect = np.ones((2*self.side_view_size,2*self.side_view_size,3), dtype=np.uint8) * 0
+
+        # rozszerzenie wycinka jeśli wychodzi poza zakres image na wartości ujemne lub poza rozmiar
+
+        ext_x_min = x * (x < 0)
+        ext_x_max = (image.shape[1] -(x + 2*self.side_view_size)) * ((x + self.side_view_size * 2) > image.shape[1])
+
+        ext_y_min = y * (y < 0)
+        ext_y_max = (image.shape[0] - (y + 2*self.side_view_size)) * ((y + self.side_view_size * 2) > image.shape[0])
+
+        tmp_x = x - ext_x_min
+        tmp_y = y - ext_y_min
+
+        tmp_w = w + ext_x_min + ext_x_max
+        tmp_h = h + ext_y_min + ext_y_max
+
+        tmp_sub_crop_rect = image[tmp_y : tmp_y + tmp_h,
+                                    tmp_x : tmp_x + tmp_w].copy()
+
+        sub_crop_rect[-1 * ext_y_min : -1 * ext_y_min + tmp_h,
+                        -1 * ext_x_min : -1 * ext_x_min + tmp_w] = tmp_sub_crop_rect
+        
+        return sub_crop_rect
 
     def calc_side_view_size(self):
         self.side_view_size=250  
@@ -461,39 +497,39 @@ class Frame:
 
     def draw_head_leading_line(self, image, delta_x=0, delta_y=0):
 
-            if self.detected:
+        if self.detected:
 
-                # określenie wsp. punktu głowy
+            # określenie wsp. punktu głowy
 
-                crop_head_point = transform_point(self.skeleton_points[1], delta_x, delta_y)
+            crop_head_point = transform_point(self.skeleton_points[1], delta_x, delta_y)
 
-                # oblicznie wsp. rzednych lini wiodoącej na wycinku
-                x1 = x2 = crop_head_point.x_disp
-                y1 = 0
-                y2 = image.shape[1]
+            # oblicznie wsp. rzednych lini wiodoącej na wycinku
+            x1 = x2 = crop_head_point.x_disp
+            y1 = 0
+            y2 = image.shape[1]
 
-                start_point = Point(x1, y1)
-                end_point = Point(x2, y2)
+            start_point = Point(x1, y1)
+            end_point = Point(x2, y2)
 
-                # obrót lini wiodocej wzgledem głowy o kąt obrotu roweru
-                start_point = rotate_point(crop_head_point,
+            # obrót lini wiodocej wzgledem głowy o kąt obrotu roweru
+            start_point = rotate_point(crop_head_point,
                                            start_point,
                                            math.radians(self.bike_rotation))
-                end_point = rotate_point(crop_head_point,
+            end_point = rotate_point(crop_head_point,
                                          end_point,
                                          math.radians(self.bike_rotation))
-                
-                # rysuj linie wiodącą głowy
-                cv2.line(image, start_point.pos_disp, end_point.pos_disp, (0,0,0), thickness=2)
+
+            # rysuj linie wiodącą głowy
+            cv2.line(image, start_point.pos_disp, end_point.pos_disp, (255, 128, 0), thickness=2)
 
     def draw_wheelbase_line(self, image, delta_x=0, delta_y=0):
 
         if self.detected:
-            
+
             central_point           = self.trace_point
             center_of_back_wheel    = transform_point(central_point, -self.bike_chain_stay*self.size_factor, 0)
             center_of_front_wheel   = transform_point(central_point, (-self.bike_chain_stay+self.bike_wheel_base)*self.size_factor, 0)
-            
+
             # obliczenie kąta obrotu roweru w stosunku do poziomu
             # wartość dodatnia oznacza obrót zgodnie z ruchem wskazówek zegara
 
@@ -504,16 +540,8 @@ class Frame:
             center_of_front_wheel=transform_point(center_of_front_wheel, delta_x, delta_y)
 
             # rysuj linie bazy kół
-            print('x'*10)
-            print(center_of_back_wheel.pos_disp)
-            print(center_of_front_wheel.pos_disp)
-            print(self.size_factor)
-            print(image.shape)
-            print(self.side_view_size)
-            print('-'*10)
 
-
-            cv2.line(image, center_of_back_wheel.pos_disp, center_of_front_wheel.pos_disp, (0,0,0), thickness=3)
+            cv2.line(image, center_of_back_wheel.pos_disp, center_of_front_wheel.pos_disp, (255, 128, 0), thickness=3)
 
             # rysuje koła na końcu bazy kół
 
@@ -857,7 +885,7 @@ class Clip:
         if self.frames[frame_number].detected == True:
 
             # leading line setup
-            leading_line_color = (0, 0, 0)
+            leading_line_color = (255, 128, 0)
             leading_line_thickness= 2
 
             pos_1 = self.frames[frame_number].trace_point.x_disp, 0

@@ -201,7 +201,7 @@ class Window(tk.Tk):
 
         # tworzy obiekt clipu
 
-        self.filename='VID_20241231_125439_002.mp4'
+        self.filename='VID_20241214_140301_003.mp4'
 
         self.frame_to_display=20
 
