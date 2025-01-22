@@ -3,11 +3,13 @@ import json
 import cv2
 import numpy as np
 import math
+import scipy.interpolate
 from unidecode import unidecode
 from PIL import Image, ImageTk
 from ffprobe import FFProbe
 from general_bm import letterbox_calc
 from functions import *
+import scipy
 
 def angle_between_vectors(u, v):
     dot_product = sum(i * j for i, j in zip(u, v))
@@ -764,12 +766,31 @@ class Clip:
 
             chart.generate_line_data(self.chart_y_pos, chart_number)
             line_to_draw = chart.chart_line
+            spline_to_draw = chart.chart_spline
+
+            # setup
+            line_thickness = 2
+            line_color = (255, 128, 0)
+            spline_color = (145, 67, 33)
+
+
+            self.draw_line(image, line_to_draw, color=line_color, thickness=line_thickness)
+            self.draw_line(image, spline_to_draw, color=spline_color, thickness=line_thickness)
+
+        
+        # rysowanie spline wykresów
+
+        for chart_number, chart in enumerate(charts_to_draw):
+
+            chart.generate_spline_data(self.chart_y_pos, chart_number)
+            spline_to_draw = chart.chart_spline
 
             # setup
             line_thickness = 2
             line_color = (255, 128, 0)
 
-            self.draw_line(image, line_to_draw, color=line_color, thickness=line_thickness)
+            self.draw_line(image, spline_to_draw, color=line_color, thickness=line_thickness)
+        
 
         # rysowanie opisów
 
@@ -1097,6 +1118,8 @@ class Chart:
         # dane wykresu
         self.chart_points   =   None
         self.chart_line     =   []
+        self.chart_spline     =   []
+
 
     def generate_line_data(self, chart_y_pos=0, chart_number=0):
         #  zebranie danych do rysowania lini wykresu
@@ -1104,9 +1127,9 @@ class Chart:
 
         self.chart_line.clear()
 
-        frames_numbers = sorted(i for i in self.chart_points.keys())
+        frames_number = sorted(i for i in self.chart_points.keys())
 
-        for frame in frames_numbers[1:]:
+        for frame in frames_number[1:]:
 
             # jeśli dane dla obu klatek występują to:
             try:
@@ -1138,6 +1161,57 @@ class Chart:
                 self.chart_line.append((pos_1, pos_2))
             except:
                 pass
+
+    def generate_spline_data(self, chart_y_pos=0, chart_number=0):
+
+        # przygpotowanie punktów do oblicznia splina ( x musi być rosnący !
+        # pobranie danych
+
+        self.chart_spline.clear()
+
+        points_to_calc_spline = {}
+
+        frames_number = sorted(i for i in self.chart_points.keys())
+
+        for frame in frames_number:
+
+            pos = self.chart_points[frame]
+
+            if self.reverse == True:
+                # jeśli wykres ma być odwrócont tj. mniejsze wartosci u góry:
+                # korekta - odwócenie wykresu do góry nogami,
+                # przesunięcie w pionie i ograniczenie zakresu
+                delta_y = chart_y_pos - self.range_min + (chart_number * self.chart_height)
+
+                pos = (self.chart_points[frame].x,
+                        self.chart_points[frame].y + delta_y)
+                
+            else:
+                # korekta
+                # przesunięcie w pionie i ograniczenie zakresu
+                delta_y = chart_y_pos + self.range_max + (chart_number * self.chart_height)
+
+                pos = (self.chart_points[frame].x,
+                        -1 * self.chart_points[frame].y + delta_y)
+
+            points_to_calc_spline[pos[0]]=pos[1]
+
+            x_points_spline = sorted(x for x in points_to_calc_spline.keys())
+
+        x, y = [], []
+
+        for x_pos in x_points_spline:
+            x.append(x_pos)
+            y.append(points_to_calc_spline[x_pos])
+
+        x = np.array(x)
+        y = np.array(y)
+
+        spline_obj = scipy.interpolate.make_interp_spline(x, y, k=3)
+
+        for i in range(x_points_spline[0], x_points_spline[-1]):
+            self.chart_spline.append(((i, int(spline_obj(i))),
+                                     (i+1, int(spline_obj(i+1)))))
 
 class Line:
 
