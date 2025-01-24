@@ -1,37 +1,37 @@
-'main_frame_draw_state',
-'main_frame_background_draw_state',
-'',
-'main_skeleton_draw_state',
-'main_skeleton_right_draw_state',
-'main_skeleton_left_draw_state',
-'',
-'right_knee_chart_draw_state',
-'right_hip_chart_draw_state',
-'right_elbow_chart_draw_state',
-'left_knee_chart_draw_state',
-'left_hip_chart_draw_state',
-'left_elbow_chart_draw_state',
-'',
-'stack_reach_len_chart_draw_state',
-'stack_reach_ang_chart_draw_state',
-'speed_chart_draw_state',
-'',
-'charts_background_draw_state',
-'',
-'descriptions_chart_draw_state',
-'',
-'trace_line_draw_state',
-'center_of_gravity_line_draw_state',
-'',
-'leading_line_draw_state',
-'',
-'side_frame_draw_state',
-'side_frame_background_draw_state',
-'',
-'side_skeleton_draw_state',
-'side_skeleton_right_draw_state',
-'side_skeleton_left_draw_state',
-'',
-'side_wheel_base_line_draw_state',
-'',
-'side_head_leading_line_draw_state'
+import matplotlib.pyplot as plt
+import numpy as np
+
+#define predictor and response variables
+x = np.array([2, 3, 4, 5, 6, 7, 7, 8, 9, 11, 12])
+y = np.array([18, 16, 15, 17, 20, 23, 25, 28, 31, 30, 29])
+
+#create scatterplot to visualize relationship between x and y
+plt.scatter(x, y)
+
+
+from sklearn.preprocessing import PolynomialFeatures
+from sklearn.linear_model import LinearRegression
+
+#specify degree of 3 for polynomial regression model
+#include bias=False means don't force y-intercept to equal zero
+poly = PolynomialFeatures(degree=3, include_bias=False)
+
+#reshape data to work properly with sklearn
+poly_features = poly.fit_transform(x.reshape(-1, 1))
+
+#fit polynomial regression model
+poly_reg_model = LinearRegression()
+poly_reg_model.fit(poly_features, y)
+
+#display model coefficients
+print(poly_reg_model.intercept_, poly_reg_model.coef_)
+
+
+#use model to make predictions on response variable
+y_predicted = poly_reg_model.predict(poly_features)
+
+#create scatterplot of x vs. y
+plt.scatter(x, y)
+
+#add line to show fitted polynomial regression model
+plt.plot(x, y_predicted, color='purple')

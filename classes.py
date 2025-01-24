@@ -766,7 +766,7 @@ class Clip:
 
             chart.generate_line_data(self.chart_y_pos, chart_number)
             line_to_draw = chart.chart_line
-            spline_to_draw = chart.chart_spline
+            # spline_to_draw = chart.chart_spline
 
             # setup
             line_thickness = 2
@@ -775,7 +775,7 @@ class Clip:
 
 
             self.draw_line(image, line_to_draw, color=line_color, thickness=line_thickness)
-            self.draw_line(image, spline_to_draw, color=spline_color, thickness=line_thickness)
+            # self.draw_line(image, spline_to_draw, color=spline_color, thickness=line_thickness)
 
         
         # rysowanie spline wykresów
@@ -925,13 +925,17 @@ class Clip:
             if getattr(draws_states, line_name_draw_state_atr) == True:
 
                 line.generate_line_data()
+                line.generate_spline_data(image)
                 line_to_draw = line.line_line
+                spline_to_draw = line.line_spline
 
                 # setup
                 line_thickness = 3
                 line_color = line.line_color
 
                 self.draw_line(image, line_to_draw, color=line_color, thickness=line_thickness)
+                self.draw_line(image, spline_to_draw, color=(0,0,0), thickness=line_thickness)
+
 
         # do analizy czy nie lepiej pokazać rzeczywistą odległość kostka- biodro, 
         # zamiast odległosci w pionie, bo na wykresie myli
@@ -1163,55 +1167,73 @@ class Chart:
                 pass
 
     def generate_spline_data(self, chart_y_pos=0, chart_number=0):
+        pass
 
         # przygpotowanie punktów do oblicznia splina ( x musi być rosnący !
         # pobranie danych
 
-        self.chart_spline.clear()
+        # self.chart_spline.clear()
 
-        points_to_calc_spline = {}
+        # points_to_calc_spline = {}
 
-        frames_number = sorted(i for i in self.chart_points.keys())
+        # frames_number = sorted(i for i in self.chart_points.keys())
 
-        for frame in frames_number:
+        # for frame in frames_number:
 
-            pos = self.chart_points[frame]
+        #     pos = self.chart_points[frame]
 
-            if self.reverse == True:
-                # jeśli wykres ma być odwrócont tj. mniejsze wartosci u góry:
-                # korekta - odwócenie wykresu do góry nogami,
-                # przesunięcie w pionie i ograniczenie zakresu
-                delta_y = chart_y_pos - self.range_min + (chart_number * self.chart_height)
+        #     if self.reverse == True:
+        #         # jeśli wykres ma być odwrócont tj. mniejsze wartosci u góry:
+        #         # korekta - odwócenie wykresu do góry nogami,
+        #         # przesunięcie w pionie i ograniczenie zakresu
+        #         delta_y = chart_y_pos - self.range_min + (chart_number * self.chart_height)
 
-                pos = (self.chart_points[frame].x,
-                        self.chart_points[frame].y + delta_y)
+        #         pos = (self.chart_points[frame].x,
+        #                 self.chart_points[frame].y + delta_y)
                 
-            else:
-                # korekta
-                # przesunięcie w pionie i ograniczenie zakresu
-                delta_y = chart_y_pos + self.range_max + (chart_number * self.chart_height)
+        #     else:
+        #         # korekta
+        #         # przesunięcie w pionie i ograniczenie zakresu
+        #         delta_y = chart_y_pos + self.range_max + (chart_number * self.chart_height)
 
-                pos = (self.chart_points[frame].x,
-                        -1 * self.chart_points[frame].y + delta_y)
+        #         pos = (self.chart_points[frame].x,
+        #                 -1 * self.chart_points[frame].y + delta_y)
 
-            points_to_calc_spline[pos[0]]=pos[1]
+        #     points_to_calc_spline[pos[0]]=pos[1]
 
-            x_points_spline = sorted(x for x in points_to_calc_spline.keys())
+        #     x_points_spline = sorted(x for x in points_to_calc_spline.keys())
 
-        x, y = [], []
+        # x, y = [], []
 
-        for x_pos in x_points_spline:
-            x.append(x_pos)
-            y.append(points_to_calc_spline[x_pos])
+        # for x_pos in x_points_spline:
+        #     x.append(x_pos)
+        #     y.append(points_to_calc_spline[x_pos])
 
-        x = np.array(x)
-        y = np.array(y)
+        # x = np.array(x)
+        # y = np.array(y)
 
-        spline_obj = scipy.interpolate.make_interp_spline(x, y, k=3)
+        # import matplotlib.pyplot as plt
 
-        for i in range(x_points_spline[0], x_points_spline[-1]):
-            self.chart_spline.append(((i, int(spline_obj(i))),
-                                     (i+1, int(spline_obj(i+1)))))
+        # from sklearn.preprocessing import PolynomialFeatures
+        # from sklearn.linear_model import LinearRegression
+        
+        # #specify degree of _ for polynomial regression model
+        # #include bias=False means don't force y-intercept to equal zero
+        # poly = PolynomialFeatures(degree=4, include_bias=False)
+
+        # #reshape data to work properly with sklearn
+        # poly_features = poly.fit_transform(x.reshape(-1, 1))
+
+        # #fit polynomial regression model
+        # poly_reg_model = LinearRegression()
+        # poly_reg_model.fit(poly_features, y)
+
+        # y_predicted = poly_reg_model.predict(poly_features)
+
+        # plt.plot(x, y_predicted, color='purple')
+       
+        # plt.plot(x, y, 'b-', label='data')
+        # plt.show()
 
 class Line:
 
@@ -1229,8 +1251,11 @@ class Line:
         # dane lini
         self.line_points   =   None
         self.line_line     =   []
+        self.line_spline   =   []
+
 
     def generate_line_data(self):
+        
         # zebranie danych do rysowania lini 
         # pobranie danych
 
@@ -1246,6 +1271,76 @@ class Line:
                 pos_2 = self.line_points[frame].pos
 
                 self.line_line.append((pos_1, pos_2))
+
+            except:
+                pass
+
+    def generate_spline_data(self, image):
+
+        # przygpotowanie punktów do oblicznia splina ( x musi być rosnący !
+        # pobranie danych
+
+        self.line_spline.clear()
+
+        points_to_calc_spline = {}
+
+        frames_number = sorted(i for i in self.line_points.keys())
+
+        for frame in frames_number:
+
+            pos = self.line_points[frame]
+
+            points_to_calc_spline[pos.x]=pos.y
+
+            x_points_spline = sorted(x for x in points_to_calc_spline.keys())
+
+        x, y = [], []
+
+        for x_pos in x_points_spline:
+            x.append(x_pos)
+            y.append(points_to_calc_spline[x_pos])
+
+        x = np.array(x)
+        y = np.array(y)
+
+        import matplotlib.pyplot as plt
+
+        from sklearn.preprocessing import PolynomialFeatures
+        from sklearn.linear_model import LinearRegression
+        
+        #specify degree of _ for polynomial regression model
+        #include bias=False means don't force y-intercept to equal zero
+        poly = PolynomialFeatures(degree=4, include_bias=False)
+
+        #reshape data to work properly with sklearn
+        poly_features = poly.fit_transform(x.reshape(-1, 1))
+
+        #fit polynomial regression model
+        poly_reg_model = LinearRegression()
+        poly_reg_model.fit(poly_features, y)
+
+        y_predicted = poly_reg_model.predict(poly_features)
+
+        plt.plot(x, y_predicted, color='purple')
+       
+        plt.plot(x, y, 'b-', label='data')
+        plt.show()
+
+        x_to_display = np.array(range(1, image.shape[1]))
+        
+        y_to_display = poly_reg_model.predict(poly.fit_transform(x_to_display.reshape(-1, 1)))
+
+
+        spline_points = list(zip (x_to_display, (int(i) for i in y_to_display)))
+        
+        for frame in range(1, len(spline_points)):
+
+            # jeśli dane dla obu klatek występują to:
+            try:
+                pos_1 = spline_points[frame - 1]
+                pos_2 = spline_points[frame]
+
+                self.line_spline.append((pos_1, pos_2))
 
             except:
                 pass
