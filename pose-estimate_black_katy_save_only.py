@@ -19,6 +19,14 @@ def run(poseweights="yolov7-w6-pose.pt",source="test.mp4",device='cpu',view_img=
     kpts_to_store={}
     frames_times=[]
 
+    # pomijanie ostatnich sekund filmu
+    bike_detected = False
+    no_pose_frames = 0
+    no_pose_limit = 3
+
+    # ile pierwszych klatek opuścić
+    start_det_frame = 0
+
     device = select_device(opt.device) #select device
 
     model = attempt_load(poseweights, map_location=device)  #Load model
@@ -37,10 +45,8 @@ def run(poseweights="yolov7-w6-pose.pt",source="test.mp4",device='cpu',view_img=
         frame_width = int(cap.get(3))  #get video frame width
        
         source_video_name = f"{source.split('\\')[-1]}"
-        
+
         while(cap.isOpened): #loop until cap opened or video not complete
-        
-            print("Frame {} Processing".format(frame_count))
 
             ret, frame = cap.read()  #get frame and success from video capture
             
@@ -48,37 +54,61 @@ def run(poseweights="yolov7-w6-pose.pt",source="test.mp4",device='cpu',view_img=
                 frame_time=cap.get(cv2.CAP_PROP_POS_MSEC) #frame timpestamp
                 frames_times.append(frame_time)
 
-                orig_image = frame #store frame
-                image = cv2.cvtColor(orig_image, cv2.COLOR_BGR2RGB) #convert frame to RGB
-                image = letterbox(image, (frame_width), stride=64, auto=True)[0]
-                image = transforms.ToTensor()(image)
-                image = torch.tensor(np.array([image.numpy()]))
-            
-                image = image.to(device)  #convert image data to device
-                image = image.float() #convert image to float precision (cpu)
+                print(f'no_pose_frames = {no_pose_frames}, bike_detected = {bike_detected}')
 
-                with torch.no_grad():  #get predictions
-                    output_data, _ = model(image)
+                if frame_count < start_det_frame:
+                    print("Frame {} without bike (opening)".format(frame_count))
 
-                output_data = non_max_suppression_kpt(output_data,   #Apply non max suppression
-                                            0.70,   # Conf. Threshold.
-                                            0.65, # IoU Threshold.
-                                            nc=model.yaml['nc'], # Number of classes.
-                                            nkpt=model.yaml['nkpt'], # Number of keypoints.
-                                            kpt_label=True)
+                    kpts_to_store[frame_time] = []
+
+                elif no_pose_frames >= no_pose_limit: 
+                    print("Frame {} without bike (ending)".format(frame_count))
+
+                    kpts_to_store[frame_time] = []
+                    
+                else:
+                    print("Frame {} Processing".format(frame_count))
+
+                    orig_image = frame #store frame
+                    image = cv2.cvtColor(orig_image, cv2.COLOR_BGR2RGB) #convert frame to RGB
+                    image = letterbox(image, (frame_width), stride=64, auto=True)[0]
+                    image = transforms.ToTensor()(image)
+                    image = torch.tensor(np.array([image.numpy()]))
                 
-                if output_data:  #check if no pose
-                    kpts_to_store[frame_time]=[]
-                    pose=output_data[0]
-                    for c in pose[:, 5].unique(): # Print results
-                        n = (pose[:, 5] == c).sum()  # detections per class
-                        print("No of Objects in Current Frame : {}".format(n))
+                    image = image.to(device)  #convert image data to device
+                    image = image.float() #convert image to float precision (cpu)
 
-                    for det_index, _ in enumerate(reversed(pose[:,:6])): #loop over poses for drawing on frame
+                    with torch.no_grad():  #get predictions
+                        output_data, _ = model(image)
 
-                        kpts = pose[det_index, 6:]
+                    output_data = non_max_suppression_kpt(output_data,   #Apply non max suppression
+                                                0.70,   # Conf. Threshold.
+                                                0.65, # IoU Threshold.
+                                                nc=model.yaml['nc'], # Number of classes.
+                                                nkpt=model.yaml['nkpt'], # Number of keypoints.
+                                                kpt_label=True)
+                    
+                    if output_data:  #check if no pose
+                        kpts_to_store[frame_time]=[]
+                        pose=output_data[0]
+                        n = 0
+                        for c in pose[:, 5].unique(): # Print results
+                            n = (pose[:, 5] == c).sum()  # detections per class
+                            print("No of Objects in Current Frame : {}".format(n))
+                            bike_detected = True
 
-                        kpts_to_store[frame_time]=kpts.tolist()
+                        if n == 0 and bike_detected:
+                            no_pose_frames +=1
+
+                        for det_index, _ in enumerate(reversed(pose[:,:6])): #loop over poses for drawing on frame
+
+                            kpts = pose[det_index, 6:]
+
+                            kpts_to_store[frame_time]=kpts.tolist()
+                        
+                    else:
+                        pass
+
 
             else:
                 break

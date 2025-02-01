@@ -68,9 +68,16 @@ class Point:
         self.y = pos_y
         self.pos = (self.x, self.y)
 
-        self.x_disp = int(pos_x)
-        self.y_disp = int(pos_y)
+        self.x_disp = int(self.x)
+        self.y_disp = int(self.y)
         self.pos_disp   = (self.x_disp, self.y_disp)
+
+    def recalc(self):
+        self.pos = (self.x, self.y)
+        self.x_disp = int(self.x)
+        self.y_disp = int(self.y)
+        self.pos_disp   = (self.x_disp, self.y_disp)
+
 
 class Frame:
     def __init__(self, frame_count, frame_time, kpts, frame_offsets):
@@ -366,11 +373,15 @@ class Frame:
 
         return ang_to_add
 
-    def draw_side_view(self, image, draws_states):
+    def draw_side_view(self, image, draws_states, scale_factor=1):
+
+        # restet wielkości okna - zostawić funkcję do rozbudowania o opcję zmieny z poziomu programu
+        self.calc_side_view_size()
 
         # boczne okno może być wyświetlane tylko jeśli jest wykryty szkielet
         if self.detected:
 
+            self.side_view_size = int(self.side_view_size * scale_factor)
             # określenie zakresu do wyświetlenia
 
             # ustalenie punktów wycinka
@@ -379,7 +390,7 @@ class Frame:
                 self.trace_point.x_disp - self.side_view_size,
                 self.trace_point.y_disp - pose_y_cor - self.side_view_size,
                 self.side_view_size * 2,
-                self.side_view_size * 2,
+                self.side_view_size * 2
             )
 
             # określenie średnicy koła do wyświetlenia bocznego obrazu
@@ -526,6 +537,8 @@ class Frame:
 
     def draw_wheelbase_line(self, image, delta_x=0, delta_y=0):
 
+        # dodać skalowanie o scale vector
+
         if self.detected:
 
             central_point           = self.trace_point
@@ -579,6 +592,11 @@ class Clip:
         self.frame_offsets = self.left_ofset, self.top_offset
         self.calc_frame_offset()
 
+        # ustalenie współczynnika wysokości obrazu (wg rozdzielczości) - bazowy to 1080
+        self.frame_height = None
+        self.frame_hight_factor = None
+        self.calc_frame_hight_factor()
+
         # zestawia wszyskie klatki clipu
 
         self.frames = {}
@@ -590,7 +608,7 @@ class Clip:
         self.avilable_charts = {
             "right_knee_ang_chart": {
                 "chart_description": "prawe kolano [st.]",
-                "range_min": 17,
+                "range_min": 90,
                 "range_max": 180,
                 "reverse": False,
             },
@@ -656,8 +674,8 @@ class Clip:
         self.generate_lines_data()
 
         # ustawienia do rysowania wykresów
-        self.chart_y_pos = 750
-        self.chart_height = 90
+        self.chart_y_pos = int(750 * self.frame_hight_factor)
+        self.chart_height = int(90 * self.frame_hight_factor)
 
         # ustala zakres dla widgeta Scale
 
@@ -680,6 +698,12 @@ class Clip:
                                                           (frame_width), 
                                                           stride=64, 
                                                           auto=True)
+
+    def calc_frame_hight_factor(self):
+
+        self.cap.set(0, 1)
+        self.frame_height = int(self.cap.get(4))
+        self.frame_hight_factor = self.frame_height/1080
 
     def colect_frames(self):
 
@@ -737,6 +761,8 @@ class Clip:
             pos_1, pos_2 = line
 
             cv2.line(image, pos_2, pos_1, color, thickness)
+        
+        line_to_draw.clear()
 
     def draw_charts(self, image, draws_states, frame_number):
 
@@ -751,55 +777,68 @@ class Clip:
             if getattr(draws_states, chart_name_draw_state_atr) == True:
                 charts_to_draw.append(self.charts[chart_name])
 
-        charts_amount = len(charts_to_draw)
+        if not charts_to_draw: return
 
-        if charts_amount == 0: return
+        # generowanie danych wykresów
 
-        # rysowanie podkładu i lini ograniczajacych
+        # oblicznie pozycji y pierwszego wykresu
+        charts_area_height = 0
+        for chart in charts_to_draw:
+            charts_area_height += (chart.range_max - chart.range_min) * self.frame_hight_factor
+
+        charts_y_pos = self.frame_height - int(charts_area_height)
+
+        # generowanie danych wykresów dla konkretnych miejsc na obrazie
+
+        for chart in charts_to_draw:
+
+            chart.chart_y_pos = charts_y_pos
+            chart.scale_factor = self.frame_hight_factor
+            chart.chart_height = (chart.range_max - chart.range_min) * int(self.frame_hight_factor)
+
+            chart.generate_line_to_draw()
+
+            charts_y_pos += chart.chart_height
+
+        # rysowanie bazy i linii ograniczajacych wykres
 
         if draws_states.charts_background_draw_state == True:
-            self.draw_charts_base(image, charts_amount)
 
-        # rysowanie lini wykresów
+            for chart in charts_to_draw:
 
-        for chart_number, chart in enumerate(charts_to_draw):
+                self.draw_charts_base(image, chart)
 
-            chart.generate_line_data(self.chart_y_pos, chart_number)
-            line_to_draw = chart.chart_line
-            # spline_to_draw = chart.chart_spline
+        # rysowanie linii wykresów
 
-            # setup
-            line_thickness = 2
-            line_color = (255, 128, 0)
-            spline_color = (145, 67, 33)
-
-
-            self.draw_line(image, line_to_draw, color=line_color, thickness=line_thickness)
-            # self.draw_line(image, spline_to_draw, color=spline_color, thickness=line_thickness)
-
-        
-        # rysowanie spline wykresów
-
-        for chart_number, chart in enumerate(charts_to_draw):
-
-            chart.generate_spline_data(self.chart_y_pos, chart_number)
-            spline_to_draw = chart.chart_spline
+        for chart in charts_to_draw:
 
             # setup
-            line_thickness = 2
+            line_thickness = int(2 * self.frame_hight_factor)
             line_color = (255, 128, 0)
 
-            self.draw_line(image, spline_to_draw, color=line_color, thickness=line_thickness)
-        
+            self.draw_line(image, chart.chart_line_to_draw, color=line_color, thickness=line_thickness)
 
         # rysowanie opisów
 
         if draws_states.charts_descriptions_draw_state == True:
 
-            for chart_number, chart in enumerate(charts_to_draw):
+            for chart in charts_to_draw:
 
-                self.draw_charts_descriptions(image, chart_number, chart, frame_number)
+                self.draw_charts_descriptions(image, chart, frame_number)
+         
+        # rysowanie spline wykresów
 
+        # for chart_number, chart in enumerate(charts_to_draw):
+
+        #     chart.generate_spline_data(self.chart_y_pos, chart_number)
+        #     spline_to_draw = chart.chart_spline
+
+        #     # setup
+        #     line_thickness = 2
+        #     line_color = (255, 128, 0)
+
+        #     self.draw_line(image, spline_to_draw, color=line_color, thickness=line_thickness)
+        
     def generate_lines_data(self):
 
         # tworzenie obiektu lini
@@ -830,19 +869,15 @@ class Clip:
 
             self.lines[line_name].line_points = tmp_line_points_dict
 
-    def draw_charts_base(self, image, charts_amount):
+    def draw_charts_base(self, image, chart):
 
         # rysowanie tła wykresu
-        # ustalenie położenia w pionie
-        background_delta_y_1 = self.chart_y_pos
-        background_delta_y_2 = self.chart_y_pos + (charts_amount  * self.chart_height)
-
         # ustalenie współrzędnych punktów wykresu
         x, y, w, h = (
             0,
-            background_delta_y_1,
+            chart.chart_y_pos,
             image.shape[1],
-            background_delta_y_2 - background_delta_y_1,
+            chart.chart_height,
         )
         sub_img = image[y : y + h, x : x + w]
         white_rect = np.ones(sub_img.shape, dtype=np.uint8) * 255
@@ -855,31 +890,31 @@ class Clip:
         # rysowanie linii ograniczajacych wykres
         # setup
         chart_frame_color = (0, 0, 0)
-        chart_frame_thickness = 2
+        chart_frame_thickness = int(2 * chart.scale_factor)
 
-        for line_numer in range(charts_amount+1):
+        for line_numer in range(2):
 
-            pos_1 = 0, background_delta_y_1 + (line_numer * self.chart_height)
-            pos_2 = image.shape[1], background_delta_y_1 + (line_numer * self.chart_height)
+            pos_1 = 0, chart.chart_y_pos + line_numer * chart.chart_height
+            pos_2 = w, chart.chart_y_pos + line_numer * chart.chart_height
 
             cv2.line(image, pos_1, pos_2, chart_frame_color, thickness=chart_frame_thickness)
 
-    def draw_charts_descriptions(self, image, chart_number, chart, frame_number):
+    def draw_charts_descriptions(self, image, chart, frame_number):
 
         # opis wykresu
 
         # setup
         font = cv2.FONT_HERSHEY_SIMPLEX
-        fontScale = 0.8
+        fontScale = 0.8 * self.frame_hight_factor
         text_color = (0, 0, 0)
-        thickness = 2
+        thickness = int(2 * self.frame_hight_factor)
 
         # ustalenie tekstu głównego opisu do wyświetlenia i jego pozycji
         # - do zmiany tak żeby się wyświetlały polskie znaki
         main_description = unidecode(chart.chart_description)
 
-        x_pos = 20
-        y_pos = self.chart_y_pos + chart_number * self.chart_height + 25
+        x_pos = int(20 * self.frame_hight_factor)
+        y_pos = chart.chart_y_pos + int(25 * self.frame_hight_factor)
 
         main_description_loc = (x_pos, y_pos)
 
@@ -895,8 +930,8 @@ class Clip:
 
         # opisy, tylko jeśli na ekranie jest wykryty szkielet tj. obiekt chart ma dane dla klatki
         try:
-            x_pos = chart.chart_points[frame_number].x_disp + 20
-            y_pos = self.chart_y_pos + (chart_number + 1) * self.chart_height - 20
+            x_pos = chart.chart_points[frame_number].x_disp + int(20 * self.frame_hight_factor)
+            y_pos = chart.chart_y_pos + chart.chart_height - int(20 * self.frame_hight_factor)
 
             chart_value_description = str(chart.chart_points[frame_number].y_disp)
 
@@ -925,16 +960,16 @@ class Clip:
             if getattr(draws_states, line_name_draw_state_atr) == True:
 
                 line.generate_line_data()
-                line.generate_spline_data(image)
+                # line.generate_spline_data(image)
                 line_to_draw = line.line_line
-                spline_to_draw = line.line_spline
+                # spline_to_draw = line.line_spline
 
                 # setup
                 line_thickness = 3
                 line_color = line.line_color
 
                 self.draw_line(image, line_to_draw, color=line_color, thickness=line_thickness)
-                self.draw_line(image, spline_to_draw, color=(0,0,0), thickness=line_thickness)
+                # self.draw_line(image, spline_to_draw, color=(0,0,0), thickness=line_thickness)
 
 
         # do analizy czy nie lepiej pokazać rzeczywistą odległość kostka- biodro, 
@@ -951,7 +986,7 @@ class Clip:
         # rysowenie widoku boczego
 
         if draws_states.side_frame_draw_state:
-            self.frames[frame_number].draw_side_view(image, draws_states)
+            self.frames[frame_number].draw_side_view(image, draws_states, self.frame_hight_factor)
             
         # rysowanie lini trasy/ środek ciężkości itp.
         
@@ -1117,15 +1152,28 @@ class Chart:
         self.range_max = range_max
         self.reverse = reverse
 
-        self.chart_height = self.range_max - self.range_min
-
         # dane wykresu
         self.chart_points   =   None
         self.chart_line     =   []
+
+        # dane dla przyjętego obrazu
+        self.chart_line_to_draw = []
+        self.chart_y_pos = None
+        self.chart_height = None
+        self.scale_factor = None
+
         self.chart_spline     =   []
 
+    def generate_line_to_draw(self):
+            self.generate_line_data()
+            self.scale_chart()
+            self.reduce_to_min_val()
+            self.revers_chart()
+            self.place_chart()
+            self.recalc_points_data()
+            self.calc_chart_line_to_draw()
 
-    def generate_line_data(self, chart_y_pos=0, chart_number=0):
+    def generate_line_data(self):
         #  zebranie danych do rysowania lini wykresu
         # pobranie danych
 
@@ -1135,36 +1183,52 @@ class Chart:
 
         for frame in frames_number[1:]:
 
-            # jeśli dane dla obu klatek występują to:
+            # jeśli dane dla obu klatek występują to:           
             try:
                 pos_1 = self.chart_points[frame - 1]
                 pos_2 = self.chart_points[frame]
 
-                if self.reverse == True:
-                    # jeśli wykres ma być odwrócont tj. mniejsze wartosci u góry:
-                    # korekta - odwócenie wykresu do góry nogami,
-                    # przesunięcie w pionie i ograniczenie zakresu
-                    delta_y = chart_y_pos - self.range_min + (chart_number * self.chart_height)
-
-                    pos_1 = (self.chart_points[frame - 1].x_disp,
-                            self.chart_points[frame - 1].y_disp + delta_y)
-                    
-                    pos_2 = (self.chart_points[frame].x_disp,
-                            self.chart_points[frame].y_disp + delta_y)
-                else:
-                    # korekta
-                    # przesunięcie w pionie i ograniczenie zakresu
-                    delta_y = chart_y_pos + self.range_max + (chart_number * self.chart_height)
-
-                    pos_1 = (self.chart_points[frame - 1].x_disp,
-                            -1 * self.chart_points[frame - 1].y_disp + delta_y)
-                    
-                    pos_2 = (self.chart_points[frame].x_disp,
-                            -1 * self.chart_points[frame].y_disp + delta_y)
+                pos_1 = Point(self.chart_points[frame - 1].x,
+                              self.chart_points[frame - 1].y)
+                
+                pos_2 = Point(self.chart_points[frame].x,
+                              self.chart_points[frame].y)
 
                 self.chart_line.append((pos_1, pos_2))
             except:
                 pass
+
+    def scale_chart(self):        
+        for pos_1, pos_2 in self.chart_line:
+            pos_1.y = pos_1.y * self.scale_factor
+            pos_2.y = pos_2.y * self.scale_factor
+
+    def reduce_to_min_val(self):
+        for pos_1, pos_2 in self.chart_line:
+            pos_1.y = pos_1.y - self.range_min * self.scale_factor
+            pos_2.y = pos_2.y - self.range_min * self.scale_factor
+
+    def revers_chart(self):
+        if not self.reverse:
+            for pos_1, pos_2 in self.chart_line:
+                pos_1.y = -1 * pos_1.y + (self.range_max - self.range_min) * self.scale_factor
+                pos_2.y = -1 * pos_2.y + (self.range_max - self.range_min) * self.scale_factor
+
+    def place_chart(self):
+        for pos_1, pos_2 in self.chart_line:
+            pos_1.y = pos_1.y + self.chart_y_pos
+            pos_2.y = pos_2.y + self.chart_y_pos
+
+    def recalc_points_data(self):
+        for pos_1, pos_2 in self.chart_line:
+            pos_1.recalc()
+            pos_2.recalc()
+
+    def calc_chart_line_to_draw(self):
+        for pos_1, pos_2 in self.chart_line:
+            self.chart_line_to_draw.append((pos_1.pos_disp,
+                                            pos_2.pos_disp))
+
 
     def generate_spline_data(self, chart_y_pos=0, chart_number=0):
         pass

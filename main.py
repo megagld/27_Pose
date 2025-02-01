@@ -1,6 +1,8 @@
 #bmystek
 import os
 import shutil
+from wakepy import keep
+
 
 def set_dirs():
     global data_dir, analysed_dir
@@ -36,8 +38,11 @@ def run():
 def analyse(file_to_analyse,folder_to_store):
 
     # os.system("python {} --source \"{}\" --device cpu --output_folder \"{}\"".format('pose-estimate_black_katy.py',file_to_analyse,folder_to_store))  
+    
+    with keep.running() as k:
+    # do stuff that takes long time
 
-    os.system("python {} --source \"{}\" --device cpu --output_folder \"{}\"".format('pose-estimate_black_katy_save_only.py',file_to_analyse,folder_to_store))  
+        os.system("python {} --source \"{}\" --device cpu --output_folder \"{}\"".format('pose-estimate_black_katy_save_only.py',file_to_analyse,folder_to_store))  
 
 
 if __name__ == "__main__":

@@ -6,6 +6,7 @@ from PIL import ImageTk
 import classes
 from timeit import default_timer as timer
 import importlib
+import os
 
 
 class CanvasImage(tk.Canvas):
@@ -90,6 +91,8 @@ class Frame_right(tk.Frame):
 
         self.var = None
 
+        self.get_files_list()
+
         self.canvas = CanvasImage(self, relief='sunken', bd=2)
         tk.Button(self, text='przeładuj klasę classes', comman=self.reload).pack()
         tk.Button(self, text='przeładuj obraz', comman=self.canvas.update_view).pack()
@@ -100,34 +103,66 @@ class Frame_right(tk.Frame):
 
         tk.Button(self, text='make clip', comman=self.make_clip).pack()
 
+        tk.Button(self, text='załaduj plik', comman=self.reload_file).pack()        
+        self.combo_list = ttk.Combobox(self, width = 40, textvariable = self.master.file_to_load, values=self.files_list)
+        self.combo_list.pack()
+
         self.scale=ttk.Scale(self, 
                              variable = self.var, orient='horizontal', 
-                             from_= self.master.clip.scale_range_min, 
-                             to=self.master.clip.scale_range_max, 
                              command=self.update_view)
 
         self.scale.pack(side="top", fill="x", expand=False)
 
         self.canvas.pack(expand=True, fill='both', padx=10, pady=10)
 
+    def reload_file(self):
+        self.master.load_file()
+        self.calc_scale_range()
+        self.scale.set(self.master.clip.scale_range_min)
+
+
+    def calc_scale_range(self):
+
+        self.scale_from = self.master.clip.scale_range_min
+        self.scale_to = self.master.clip.scale_range_max
+
+        self.scale.config(from_=self.scale_from)
+        self.scale.config(to=self.scale_to)
+
+    def get_files_list(self):
+
+        self.files_list = []
+
+        input_dir = os.getcwd()
+        input_data_dir = '{}\\{}'.format(input_dir,'_data')
+        input_analized_dir = '{}\\{}'.format(input_dir,'_analysed')
+
+        data_files = []
+        analized_files = []
+
+        # pobiera pliki z katalogu _data
+        for i in next(os.walk(input_data_dir), (None, None, []))[2]:
+            if i.endswith('.mp4'):
+                data_files.append(i[:-4])
+            
+        # pobiera pliki z katalogu _analized
+        for i in next(os.walk(input_analized_dir), (None, None, []))[2]:
+            if i.endswith('.json'):
+                analized_files.append(i[:-10])
+        
+        for data_file in data_files:
+            if data_file in analized_files:
+                self.files_list.append(data_file)
+        
+        print(f'Pliki z gotową analizą: {len(self.files_list)}')
 
     def reload(self):
         importlib.reload(classes) 
         self.master.clip=classes.Clip(self.master.filename)
 
     def update_view(self,x) -> None:
-        pass
         self.master.frame_to_display=int(float(x))
         self.canvas.update_view()
-
-    def print_size(self) -> None:       
-        self.width = self.winfo_width()
-        self.height = self.winfo_height()
-        print('x'*10)
-        print('self.size :'+str(self.width)+"x"+str(self.height))
-        print('x'*12)
-        print('ttttttttttttttttt')
-        print(self.master.draws_states.main_frame_draw_state)
 
     def frame_cnt_forward(self):
         self.master.frame_to_display+=1
@@ -214,14 +249,9 @@ class Window(tk.Tk):
 
         tb.Style().configure('Roundtoggle.Toolbutton', font=('Helvetica', 16))
 
-        # tworzy obiekt clipu
-
-        self.filename='PXL_20241218_121042417_006.mp4'
-
-        self.frame_to_display=20
-
-        self.clip=classes.Clip(self.filename)
-        
+        self.file_to_load = tk.StringVar() 
+        self.file_to_load.set("Select From List")
+       
         # tworzy obiekt ze stanem pozycji do wyświetlenia
 
         self.draws_states = classes.Draws_states()
@@ -238,7 +268,17 @@ class Window(tk.Tk):
         self.frame_1 = Frame_left(self).pack(side='left', fill='both', expand=False)
         self.frame_2 = Frame_right(self).pack(side='right', fill='both', expand=True)
 
-        print('x')
+    def load_file(self):
+
+        if self.file_to_load.get()!="Select From List":
+
+            self.filename = self.file_to_load.get()
+            
+            self.filename=f'\\{self.filename}.mp4'
+
+            self.frame_to_display=0
+
+            self.clip=classes.Clip(self.filename)
 
 if __name__ == '__main__':
     window = Window()
