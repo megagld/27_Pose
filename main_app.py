@@ -100,6 +100,7 @@ class Frame_right(tk.Frame):
         tk.Button(self, text='frame count -', comman=self.frame_cnt_back).pack()
         tk.Button(self, text='bike rotation +', comman=self.bike_rotation_plus).pack()
         tk.Button(self, text='bike rotation -', comman=self.bike_rotation_minus).pack()
+        tk.Button(self, text='ustaw kąt', comman=self.set_ang).pack()
 
         tk.Button(self, text='make clip', comman=self.make_clip).pack()
 
@@ -114,6 +115,9 @@ class Frame_right(tk.Frame):
         self.scale.pack(side="top", fill="x", expand=False)
 
         self.canvas.pack(expand=True, fill='both', padx=10, pady=10)
+
+
+
 
     def reload_file(self):
         self.master.load_file()
@@ -187,6 +191,11 @@ class Frame_right(tk.Frame):
 
         self.canvas.open_image()
         self.scale.set(self.master.frame_to_display)
+
+    def set_ang(self):
+        self.master.clip.bike_ang_cor.append((self.master.frame_to_display, 
+                                      self.master.clip.frames[self.master.frame_to_display].bike_rotation))
+        print(self.master.clip.bike_ang_cor)
 
     def make_clip(self):
         self.master.clip.make_video_clip(self.master.draws_states)
