@@ -10,6 +10,7 @@ from ffprobe import FFProbe
 from general_bm import letterbox_calc
 from functions import *
 import scipy
+import copy
 
 def angle_between_vectors(u, v):
     dot_product = sum(i * j for i, j in zip(u, v))
@@ -60,6 +61,22 @@ def get_mid(kpts, sk_id_1, sk_id_2):
 
     return Point((pos_x_2 + pos_x_1) / 2, (pos_y_2 + pos_y_1) / 2)
 
+def draw_line(image, line_to_draw, color=(0, 0, 0), thickness=3):
+
+    # rysowanie wykresu na podstawie listy punktów
+
+    for x_axis_point in range(len(line_to_draw)-1):
+
+        pos_1 = line_to_draw[x_axis_point]
+        pos_2 = line_to_draw[x_axis_point+1]
+
+        pos_1 = pos_1.disp_pos()             
+        pos_2 = pos_2.disp_pos()      
+
+        cv2.line(image, pos_1, pos_2, color, thickness)
+    
+    line_to_draw.clear()
+    
 class Point:
     def __init__(self, pos_x, pos_y, sk_id=None):
         self.sk_id = sk_id
@@ -72,13 +89,9 @@ class Point:
         self.y_disp = int(self.y)
         self.pos_disp   = (self.x_disp, self.y_disp)
 
-    def recalc(self):
-        self.pos = (self.x, self.y)
-        self.x_disp = int(self.x)
-        self.y_disp = int(self.y)
-        self.pos_disp   = (self.x_disp, self.y_disp)
-
-
+    def disp_pos(self):
+        return (int(self.x), int(self.y))
+        
 class Frame:
     def __init__(self, frame_count, frame_time, kpts, frame_offsets):
 
@@ -185,7 +198,6 @@ class Frame:
 
         # prędkość
         self.speed = int((self.speed_dist_m/self.speed_time) * 3600)
-
 
     def calc_ang(self):
         # tworzy słownik z danymi do wykresów
@@ -406,8 +418,8 @@ class Frame:
             # ustalenie punktów wycinka
             pose_y_cor = 0
             x, y, w, h = (
-                self.trace_point.x_disp - self.side_view_size,
-                self.trace_point.y_disp - pose_y_cor - self.side_view_size,
+                int(self.trace_point.x) - self.side_view_size,
+                int(self.trace_point.y) - pose_y_cor - self.side_view_size,
                 self.side_view_size * 2,
                 self.side_view_size * 2
             )
@@ -536,7 +548,7 @@ class Frame:
             crop_head_point = transform_point(self.skeleton_points[1], delta_x, delta_y)
 
             # oblicznie wsp. rzednych lini wiodoącej na wycinku
-            x1 = x2 = crop_head_point.x_disp
+            x1 = x2 = crop_head_point.x
             y1 = 0
             y2 = image.shape[1]
 
@@ -552,7 +564,10 @@ class Frame:
                                          math.radians(self.bike_rotation))
 
             # rysuj linie wiodącą głowy
-            cv2.line(image, start_point.pos_disp, end_point.pos_disp, (255, 128, 0), thickness=2)
+
+            line_to_draw = [start_point, end_point]
+
+            draw_line(image, line_to_draw, color=(255, 4, 0), thickness=3)
 
     def draw_wheelbase_line(self, image, delta_x=0, delta_y=0):
 
@@ -575,7 +590,9 @@ class Frame:
 
             # rysuj linie bazy kół
 
-            cv2.line(image, center_of_back_wheel.pos_disp, center_of_front_wheel.pos_disp, (255, 128, 0), thickness=3)
+            line_to_draw = [center_of_back_wheel, center_of_front_wheel]
+
+            draw_line(image, line_to_draw, color=(255, 4, 0), thickness=3)
 
             # rysuje koła na końcu bazy kół
 
@@ -590,10 +607,12 @@ class Frame:
             leading_line_color = (0, 0, 0)
             leading_line_thickness= 2
 
-            pos_1 = self.trace_point.x_disp, 0
-            pos_2 = self.trace_point.x_disp, image.shape[0]
+            pos_1 = Point(self.trace_point.x, 0)
+            pos_2 = Point(self.trace_point.x, image.shape[0])
 
-            cv2.line(image, pos_1, pos_2, leading_line_color, thickness=leading_line_thickness)
+            line_to_draw = [pos_1,pos_2]
+
+            draw_line(image, line_to_draw, color=leading_line_color, thickness=leading_line_thickness)
 
 class Clip:
     def __init__(self, vid_name):
@@ -626,7 +645,8 @@ class Clip:
         # współczynnik długość w pikselach/metry  - do obliczania prędkości
 
         self.speed_factor =148
-        # 180px = 1,22m = 147,5
+        # 180px = 1,22m = 147,5 - pierwszy stolik
+        # 170 - dorn 
 
         self.max_speed = 0
 
@@ -641,63 +661,72 @@ class Clip:
                 "range_min": 15,
                 "range_max": 45,
                 "reverse": False,
-                "base_scale":2
+                "base_scale":2,
+                "smoothed":True
             },
             "right_knee_ang_chart": {
                 "chart_description": "prawe kolano [st.]",
                 "range_min": 90,
                 "range_max": 180,
                 "reverse": False,
-                "base_scale":1
+                "base_scale":1,
+                "smoothed":False
             },
             "left_knee_ang_chart": {
                 "chart_description": "lewe kolano [st.]",
                 "range_min": 90,
                 "range_max": 180,
                 "reverse": False,
-                "base_scale":1
+                "base_scale":1,
+                "smoothed":False
             },
             "right_hip_ang_chart": {
                 "chart_description": "prawe biodro [st.]",
                 "range_min": 90,
                 "range_max": 180,
                 "reverse": False,
-                "base_scale":1
+                "base_scale":1,
+                "smoothed":False
             },
             "left_hip_ang_chart": {
                 "chart_description": "lewe biodro [st.]",
                 "range_min": 90,
                 "range_max": 180,
                 "reverse": False,
-                "base_scale":1
+                "base_scale":1,
+                "smoothed":False
             },
             "right_elbow_ang_chart": {
                 "chart_description": "prawy łokieć [st.]",
                 "range_min": 90,
                 "range_max": 180,
                 "reverse": False,
-                "base_scale":1
+                "base_scale":1,
+                "smoothed":False
             },
             "left_elbow_ang_chart": {
                 "chart_description": "lewy łokieć [st.]",
                 "range_min": 90,
                 "range_max": 180,
                 "reverse": False,
-                "base_scale":1
+                "base_scale":1,
+                "smoothed":False
             },
             "stack_reach_len_chart": {
                 "chart_description": "odległość stack/reach [m]",
                 "range_min": 50,
                 "range_max": 120,
                 "reverse": False,
-                "base_scale":1
+                "base_scale":1,
+                "smoothed":False
             },
             "stack_reach_ang_chart": {
                 "chart_description": "kąt stack/reach [st.]",
                 "range_min": 0,
                 "range_max": 90,
                 "reverse": False,
-                "base_scale":1
+                "base_scale":1,
+                "smoothed":False
             }
         }
         self.charts = {}
@@ -775,7 +804,6 @@ class Clip:
             except:
                 pass
 
-
     def generate_charts_data(self):
         # tworzenie obiektu wykresu
         for chart_name, chart_setup in self.avilable_charts.items():
@@ -787,8 +815,9 @@ class Clip:
                 range_min=chart_setup["range_min"],
                 range_max=chart_setup["range_max"],
                 reverse=chart_setup["reverse"],
-                base_scale=chart_setup["base_scale"]
-            )
+                base_scale=chart_setup["base_scale"],
+                smoothed=chart_setup["smoothed"]
+                )
 
             # dodanie do wykresu punkty z kolejnych klatek:
             tmp_chart_points_dict   =   {}
@@ -799,7 +828,7 @@ class Clip:
                     # tworzenie nazwy zmiennej do pobrania z obiektu klatki
                     frame_variable_name = chart_name.replace("_chart", "")
 
-                    x_pos = frame_obj.skeleton_points[17].x_disp
+                    x_pos = int(frame_obj.skeleton_points[17].x)
                     y_pos = int(getattr(frame_obj, frame_variable_name))
 
                     tmp_chart_points_dict[frame_number] = Point(x_pos, y_pos)
@@ -808,16 +837,6 @@ class Clip:
                     pass
 
             self.charts[chart_name].chart_points = tmp_chart_points_dict
-
-    def draw_line(self, image, line_to_draw, color=(0, 0, 0), thickness=3):
-        # rysowanie wykresu
-        for line in line_to_draw:
-
-            pos_1, pos_2 = line
-
-            cv2.line(image, pos_2, pos_1, color, thickness)
-        
-        line_to_draw.clear()
 
     def draw_charts(self, image, draws_states, frame_number):
 
@@ -851,7 +870,7 @@ class Clip:
             chart.scale_factor = self.frame_hight_factor
             chart.chart_height = (chart.range_max - chart.range_min) * int(self.frame_hight_factor) * chart.base_scale
 
-            chart.generate_line_to_draw()
+            chart.chart_points_to_draw = chart.generate_line_to_draw(chart.chart_points)
 
             charts_y_pos += chart.chart_height
 
@@ -867,11 +886,32 @@ class Clip:
 
         for chart in charts_to_draw:
 
+            if chart.smoothed == False:
+                # setup
+                line_thickness = int(2 * self.frame_hight_factor)
+                line_color = (255, 128, 0)
+            else:
+                # setup
+                line_thickness = int(1 * self.frame_hight_factor)
+                line_color = (80, 80, 80)
+
+            draw_line(image, chart.chart_points_to_draw, color=line_color, thickness=line_thickness)
+
+        # rysowanie spline wykresów - tylko dla prędkości !!!! - test
+
+        if draws_states.speed_chart_draw_state == True:
+        
+            # generuje dane wygładzonej krzywej wykresu
+            self.charts['speed_chart'].generate_spline_data()
+
+            self.charts['speed_chart'].generate_line_to_draw(self.charts['speed_chart'].chart_points_smoothed)
+            line_to_draw = self.charts['speed_chart'].chart_points_smoothed_to_draw
+
             # setup
-            line_thickness = int(2 * self.frame_hight_factor)
+            line_thickness = 2
             line_color = (255, 128, 0)
 
-            self.draw_line(image, chart.chart_line_to_draw, color=line_color, thickness=line_thickness)
+            draw_line(image, line_to_draw, color=line_color, thickness=line_thickness)
 
         # rysowanie opisów
 
@@ -881,17 +921,6 @@ class Clip:
 
                 self.draw_charts_descriptions(image, chart, frame_number)
          
-        # rysowanie spline wykresów - tylko dla prędkości !!!! - test
-        
-        self.charts['speed_chart'].generate_spline_data(image)
-        spline_to_draw = self.charts['speed_chart'].chart_spline
-
-        # setup
-        line_thickness = 2
-        line_color = (125, 25, 230)
-
-        self.draw_line(image, spline_to_draw, color=line_color, thickness=line_thickness)
-
 
         # rysowanie spline wykresów
 
@@ -905,11 +934,8 @@ class Clip:
         #     line_thickness = 2
         #     line_color = (255, 128, 0)
 
-        #     self.draw_line(image, spline_to_draw, color=line_color, thickness=line_thickness)
+        #     (image, spline_to_draw, color=line_color, thickness=line_thickness)
         
-
-
-
     def generate_lines_data(self):
 
         # tworzenie obiektu lini
@@ -930,8 +956,8 @@ class Clip:
                     # tworzenie nazwy zmiennej do pobrania z obiektu klatki
                     frame_variable_name = line_setup["frame_atr"]
 
-                    x_pos = frame_obj.skeleton_points[17].x_disp
-                    y_pos = int(getattr(frame_obj, frame_variable_name).y_disp)
+                    x_pos = int(frame_obj.skeleton_points[17].x)
+                    y_pos = int(getattr(frame_obj, frame_variable_name).y)
 
                     tmp_line_points_dict[frame_number] = Point(x_pos, y_pos)
 
@@ -965,10 +991,12 @@ class Clip:
 
         for line_numer in range(2):
 
-            pos_1 = 0, chart.chart_y_pos + line_numer * chart.chart_height
-            pos_2 = w, chart.chart_y_pos + line_numer * chart.chart_height
+            pos_1 = Point(0, chart.chart_y_pos + line_numer * chart.chart_height)
+            pos_2 = Point(w, chart.chart_y_pos + line_numer * chart.chart_height)
 
-            cv2.line(image, pos_1, pos_2, chart_frame_color, thickness=chart_frame_thickness)
+            line_to_draw = [pos_1, pos_2]
+
+            draw_line(image, line_to_draw, chart_frame_color, thickness=chart_frame_thickness)
 
     def draw_charts_descriptions(self, image, chart, frame_number):
 
@@ -982,6 +1010,7 @@ class Clip:
 
         # ustalenie tekstu głównego opisu do wyświetlenia i jego pozycji
         # - do zmiany tak żeby się wyświetlały polskie znaki
+
         main_description = unidecode(chart.chart_description)
 
         x_pos = int(20 * self.frame_hight_factor)
@@ -1000,11 +1029,24 @@ class Clip:
         )
 
         # opisy, tylko jeśli na ekranie jest wykryty szkielet tj. obiekt chart ma dane dla klatki
+        # jeśli wykres jest wygładzony to opis wg chart_points_smoothed
+
         try:
-            x_pos = chart.chart_points[frame_number].x_disp + int(20 * self.frame_hight_factor)
+            x_pos = int(chart.chart_points[frame_number].x) + int(20 * self.frame_hight_factor)
             y_pos = chart.chart_y_pos + chart.chart_height - int(20 * self.frame_hight_factor)
 
-            chart_value_description = str(chart.chart_points[frame_number].y_disp)
+            if chart.smoothed == True:
+                
+                for point in chart.chart_points_smoothed:
+                    if int(point.x) == int(self.frames[frame_number].trace_point.x):
+                        chart_value_description = str(int(point.y))
+                        break
+
+            else:
+                chart_value_description = str(int(chart.chart_points[frame_number].y))
+
+
+            self.draw_charts_descriptions(image, chart, frame_number)
 
             chart_value_description_loc = (x_pos, y_pos)
 
@@ -1030,18 +1072,14 @@ class Clip:
             line_name_draw_state_atr = line_name + '_draw_state'
             if getattr(draws_states, line_name_draw_state_atr) == True:
 
-                line.generate_line_data()
-                # line.generate_spline_data(image)
-                line_to_draw = line.line_line
-                # spline_to_draw = line.line_spline
+                line.line_points_to_draw = line.generate_line_to_draw(line.line_points)
+                line_to_draw = line.line_points_to_draw
 
                 # setup
                 line_thickness = 2
                 line_color = line.line_color
 
-                self.draw_line(image, line_to_draw, color=line_color, thickness=line_thickness)
-                # self.draw_line(image, spline_to_draw, color=(0,0,0), thickness=line_thickness)
-
+                draw_line(image, line_to_draw, color=line_color, thickness=line_thickness)
 
         # do analizy czy nie lepiej pokazać rzeczywistą odległość kostka- biodro, 
         # zamiast odległosci w pionie, bo na wykresie myli
@@ -1065,19 +1103,16 @@ class Clip:
             speed_dist = '-'
             speed_time = '-'
 
-
         try:
-            print('x')
-            print(self.charts['speed_chart'].chart_spline)
-            self.max_speed = self.charts['speed_chart'].chart_spline[0]
+            self.max_speed = round(self.charts['speed_chart'].max_val)
         except:
-            self.max_speed = 2
+            self.max_speed = '-'
 
 
         main_description = [f'czas - {round(frame.frame_time)} [ms]',
                             f'klatka - {frame.frame_count}/{self.frames_amount}',
-                            f'V - {speed_dist} [m]/{speed_time} [ms]',
-                            f'V max - {round(self.max_speed)} [km/h]',
+                            f'{speed_dist} [m]/{speed_time} [ms]',
+                            f'V max - {self.max_speed} [km/h]',
                             f'wsp. dlugosci - {self.speed_factor} [px/metr]'
                             ]
         
@@ -1117,7 +1152,6 @@ class Clip:
             # pos_1 = (20, h+20)
             # pos_2 = (20+self.speed_factor, h+20)
             # cv2.line(image, pos_2, pos_1, (0,0,0), 3)
-
 
     def display_frame(self, frame_number, draws_states):
 
@@ -1160,7 +1194,6 @@ class Clip:
         if draws_states.main_frame_description == True:
             self.draw_main_frame_description(image, self.frames[frame_number])
 
-
         # tworzenie ostatecznego obrazu
 
         self.montage_clip_image = image
@@ -1170,7 +1203,6 @@ class Clip:
         self.image = image
 
         self.image = Image.fromarray(image)
-
 
     def make_video_clip(self, draws_states):
 
@@ -1300,8 +1332,8 @@ class Chart:
                  range_min = None,
                  range_max = None,
                  reverse = None,
-                 base_scale = 1,
-                 smoothed = False):
+                 smoothed = None,
+                 base_scale = 1):
 
         # podstawowe dane ustawień wykresu
         self.name = name
@@ -1310,111 +1342,69 @@ class Chart:
         self.range_max = range_max
         self.reverse = reverse
         self.base_scale = base_scale #przeskalowanie wartości wykresu przy wyświetlaniu (niezależna od rozdzielczości)
+        self.smoothed = smoothed
 
         # dane wykresu
-        self.chart_points   =   None
-        self.chart_line     =   []
+        self.chart_points   =   None    # słownik z key = klatka clipu, value = Point (!)
+        self.chart_points_smoothed   =   None   # lista z Point
+
+        self.max_val = None
+        self.min_val = None
 
         # dane dla przyjętego obrazu
-        self.chart_line_to_draw = []
         self.chart_y_pos = None
         self.chart_height = None
         self.scale_factor = None
+        
+        self.chart_points_to_draw = None    
+        self.chart_points_smoothed_to_draw   =   None
 
-        self.smoothed = smoothed
-        self.chart_spline     =   []
+    def generate_line_to_draw(self, source):
 
-        self.max_val = 0
+        #  zebranie danych do rysowania lini wykresu   
+        target = copy.deepcopy(source)
 
-    def generate_line_to_draw(self):
-            self.generate_line_data()
-            self.scale_chart()
-            self.reduce_to_min_val()
-            self.revers_chart()
-            self.place_chart()
-            self.recalc_points_data()
-            self.calc_chart_line_to_draw()
+        # jeśli dane są w postaci słownika wg klatek
+        if isinstance(target, dict):     
+            target = [point for _,point in sorted(target.items())]
+    
+        # skalowanie wykresu
+        for point in target:
+            point.y = point.y * self.scale_factor * self.base_scale
 
-    def generate_line_data(self):
-        #  zebranie danych do rysowania lini wykresu
-        # pobranie danych
+        # redukcja do wartości minimalnej
+        for point in target:
+            point.y = point.y - self.range_min * self.scale_factor * self.base_scale
 
-        self.chart_line.clear()
-
-        frames_number = sorted(i for i in self.chart_points.keys())
-
-        for frame in frames_number[1:]:
-
-            # jeśli dane dla obu klatek występują to:           
-            try:
-                pos_1 = self.chart_points[frame - 1]
-                pos_2 = self.chart_points[frame]
-
-                pos_1 = Point(self.chart_points[frame - 1].x,
-                              self.chart_points[frame - 1].y)
-                
-                pos_2 = Point(self.chart_points[frame].x,
-                              self.chart_points[frame].y)
-
-                self.chart_line.append((pos_1, pos_2))
-            except:
-                pass
-
-    def scale_chart(self):        
-        for pos_1, pos_2 in self.chart_line:
-            pos_1.y = pos_1.y * self.scale_factor * self.base_scale
-            pos_2.y = pos_2.y * self.scale_factor * self.base_scale
-
-    def reduce_to_min_val(self):
-        for pos_1, pos_2 in self.chart_line:
-            pos_1.y = pos_1.y - self.range_min * self.scale_factor * self.base_scale
-            pos_2.y = pos_2.y - self.range_min * self.scale_factor * self.base_scale
-
-    def revers_chart(self):
+        # odwracanie wykresu
         if not self.reverse:
-            for pos_1, pos_2 in self.chart_line:
-                pos_1.y = -1 * pos_1.y + (self.range_max - self.range_min) * self.scale_factor * self.base_scale
-                pos_2.y = -1 * pos_2.y + (self.range_max - self.range_min) * self.scale_factor * self.base_scale
+            for point in target:
+                point.y = -1 * point.y + (self.range_max - self.range_min) * self.scale_factor * self.base_scale
 
-    def place_chart(self):
-        for pos_1, pos_2 in self.chart_line:
-            pos_1.y = pos_1.y + self.chart_y_pos
-            pos_2.y = pos_2.y + self.chart_y_pos
+        # ustalenie pozycji wykresu
+        for point in target:
+            point.y = point.y + self.chart_y_pos
 
-    def recalc_points_data(self):
-        for pos_1, pos_2 in self.chart_line:
-            pos_1.recalc()
-            pos_2.recalc()
+        # aktualizacja danych o max i min
+        self.calc_min_max()
 
-    def calc_chart_line_to_draw(self):
-        for pos_1, pos_2 in self.chart_line:
-            self.chart_line_to_draw.append((pos_1.pos_disp,
-                                            pos_2.pos_disp))
+        # zwraca listę punktów Point
+        return target
 
-
-    def generate_spline_data(self, image, chart_number = 0,  chart_y_pos= 0):
+    def generate_spline_data(self):
 
         # przygpotowanie punktów do oblicznia splina ( x musi być rosnący !
         # pobranie danych
 
-        self.chart_spline.clear()
-
-                # pobranie danych z przeskalowanego wykresu - dla konkretnego obrazu
-
-        self.generate_line_to_draw()
-
         x, y = [], []
 
-        for pos_1,_ in self.chart_line_to_draw:
+        for point in [point for _,point in sorted(self.chart_points.items())]:
 
-            x.append(pos_1[0])
-            y.append(pos_1[1])
-
+            x.append(point.x)
+            y.append(point.y)
 
         x = np.array(x)
         y = np.array(y)
-
-        import matplotlib.pyplot as plt
 
         from sklearn.preprocessing import PolynomialFeatures
         from sklearn.linear_model import LinearRegression
@@ -1430,34 +1420,30 @@ class Chart:
         poly_reg_model = LinearRegression()
         poly_reg_model.fit(poly_features, y)
 
-        y_predicted = poly_reg_model.predict(poly_features)
-
-        # plt.plot(x, y_predicted, color='purple')
-       
-        # plt.plot(x, y, 'b-', label='data')
-        # plt.show()
-
-        x_to_display = np.array(range(1, image.shape[1]))
+        # ustalenie wartości dla osi x i oblicznie y wg. fit polynomial
+        x_range = np.array(range(min(x), max(x)))
         
-        y_to_display = poly_reg_model.predict(poly.fit_transform(x_to_display.reshape(-1, 1)))
+        y_pred_values = poly_reg_model.predict(poly.fit_transform(x_range.reshape(-1, 1)))
 
+        self.chart_points_smoothed = [Point(x,y) for x,y in zip(x_range, y_pred_values)]
 
-        spline_points = list(zip (x_to_display, (int(i) for i in y_to_display)))
-        
-        for frame in range(1, len(spline_points)):
+        # przeskalowanie krzywej do wyświetlanego obrazu
 
-            # jeśli dane dla obu klatek występują to:
-            try:
-                pos_1 = spline_points[frame - 1]
-                pos_2 = spline_points[frame]
+        self.chart_points_smoothed_to_draw =  self.generate_line_to_draw(self.chart_points_smoothed)
 
-                self.chart_spline.append((pos_1, pos_2))
+        # aktualizacja danych o max i min
+        self.calc_min_max()
 
-            except:
-                pass
-
-
-        # dodać max.val
+    def calc_min_max(self):
+        try:
+            if self.smoothed == True:
+                self.max_val = max(point.y for point in self.chart_points_smoothed)
+                self.min_val = min(point.y for point in self.chart_points_smoothed)
+            else:
+                self.max_val = max(point.y for point in self.chart_points.values())
+                self.min_val = min(point.y for point in self.chart_points.values())
+        except:
+            pass
 
 class Line:
 
@@ -1473,98 +1459,30 @@ class Line:
         self.line_color = color
 
         # dane lini
-        self.line_points   =   None
-        self.line_line     =   []
-        self.line_spline   =   []
+        self.line_points   =   None    # słownik z key = klatka clipu, value = Point (!)
+        self.line_points_smoothed   =   None   # lista z Point
 
+        self.max_val = None
+        self.min_val = None
 
-    def generate_line_data(self):
+        # dane dla przyjętego obrazu
+        self.scale_factor = None
         
-        # zebranie danych do rysowania lini 
-        # pobranie danych
+        self.line_points_to_draw = None    
+        self.line_points_smoothed_to_draw   =   None
 
-        self.line_line.clear()
-
-        frames_numbers = sorted(i for i in self.line_points.keys())
-
-        for frame in frames_numbers[1:]:
-
-            # jeśli dane dla obu klatek występują to:
-            try:
-                pos_1 = self.line_points[frame - 1].pos
-                pos_2 = self.line_points[frame].pos
-
-                self.line_line.append((pos_1, pos_2))
-
-            except:
-                pass
-
-    def generate_spline_data(self, image):
-
-        # przygpotowanie punktów do oblicznia splina ( x musi być rosnący !
-        # pobranie danych
-
-        self.line_spline.clear()
-
-        points_to_calc_spline = {}
-
-        frames_number = sorted(i for i in self.line_points.keys())
-
-        for frame in frames_number:
-
-            pos = self.line_points[frame]
-
-            points_to_calc_spline[pos.x]=pos.y
-
-            x_points_spline = sorted(x for x in points_to_calc_spline.keys())
-
-        x, y = [], []
-
-        for x_pos in x_points_spline:
-            x.append(x_pos)
-            y.append(points_to_calc_spline[x_pos])
-
-        x = np.array(x)
-        y = np.array(y)
-
-        import matplotlib.pyplot as plt
-
-        from sklearn.preprocessing import PolynomialFeatures
-        from sklearn.linear_model import LinearRegression
+    def generate_line_to_draw(self, source):
         
-        #specify degree of _ for polynomial regression model
-        #include bias=False means don't force y-intercept to equal zero
-        poly = PolynomialFeatures(degree=4, include_bias=False)
+        #  zebranie danych do rysowania lini    
+        target = copy.deepcopy(source)
 
-        #reshape data to work properly with sklearn
-        poly_features = poly.fit_transform(x.reshape(-1, 1))
+        # jeśli dane są w postaci słownika wg klatek
+        if isinstance(target, dict):     
+            target = [point for _,point in sorted(target.items())]
 
-        #fit polynomial regression model
-        poly_reg_model = LinearRegression()
-        poly_reg_model.fit(poly_features, y)
+        # zwraca listę punktów Point
+        return target
 
-        y_predicted = poly_reg_model.predict(poly_features)
+    def generate_spline_data(self):
 
-        plt.plot(x, y_predicted, color='purple')
-       
-        plt.plot(x, y, 'b-', label='data')
-        plt.show()
-
-        x_to_display = np.array(range(1, image.shape[1]))
-        
-        y_to_display = poly_reg_model.predict(poly.fit_transform(x_to_display.reshape(-1, 1)))
-
-
-        spline_points = list(zip (x_to_display, (int(i) for i in y_to_display)))
-        
-        for frame in range(1, len(spline_points)):
-
-            # jeśli dane dla obu klatek występują to:
-            try:
-                pos_1 = spline_points[frame - 1]
-                pos_2 = spline_points[frame]
-
-                self.line_spline.append((pos_1, pos_2))
-
-            except:
-                pass
+        pass
