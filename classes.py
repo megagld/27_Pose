@@ -1039,11 +1039,11 @@ class Clip:
                 
                 for point in chart.chart_points_smoothed:
                     if int(point.x) == int(self.frames[frame_number].trace_point.x):
-                        chart_value_description = str(int(point.y))
+                        chart_value_description = str(round(point.y))
                         break
 
             else:
-                chart_value_description = str(int(chart.chart_points[frame_number].y))
+                chart_value_description = str(round(chart.chart_points[frame_number].y))
 
 
             self.draw_charts_descriptions(image, chart, frame_number)
@@ -1105,14 +1105,17 @@ class Clip:
 
         try:
             self.max_speed = round(self.charts['speed_chart'].max_val)
+            self.min_speed = round(self.charts['speed_chart'].min_val)
+
         except:
             self.max_speed = '-'
+            self.min_speed = '-'
 
 
         main_description = [f'czas - {round(frame.frame_time)} [ms]',
                             f'klatka - {frame.frame_count}/{self.frames_amount}',
                             f'{speed_dist} [m]/{speed_time} [ms]',
-                            f'V max - {self.max_speed} [km/h]',
+                            f'V max/min - {self.max_speed}/{self.min_speed} [km/h]',
                             f'wsp. dlugosci - {self.speed_factor} [px/metr]'
                             ]
         
@@ -1198,11 +1201,9 @@ class Clip:
 
         self.montage_clip_image = image
 
-        image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)  # convert frame to RGB
+        self.cv2_image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)  # convert frame to RGB
 
-        self.image = image
-
-        self.image = Image.fromarray(image)
+        self.image = Image.fromarray(self.cv2_image)
 
     def make_video_clip(self, draws_states):
 
@@ -1221,6 +1222,23 @@ class Clip:
             self.display_frame(frame_number, draws_states)
 
             out.write(self.montage_clip_image)  # writing the video frame
+
+        print(f"{self.name} gotowe.")
+
+    def save_frame(self, frame_to_display):
+
+        output_folder = "_clips"
+
+        output_frame_file = "{}\\{}_{:03d}.jpg".format(
+            output_folder,
+            self.name.replace(".mp4", ""),
+            frame_to_display
+        )
+        print(output_frame_file)
+
+        # self.display_frame(frame_to_display, draws_states)
+
+        cv2.imwrite(output_frame_file, self.montage_clip_image)
 
         print(f"{self.name} gotowe.")
 

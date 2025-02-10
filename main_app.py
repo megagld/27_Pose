@@ -103,6 +103,7 @@ class Frame_right(tk.Frame):
         tk.Button(self, text='ustaw kąt', comman=self.set_ang).pack()
 
         tk.Button(self, text='make clip', comman=self.make_clip).pack()
+        tk.Button(self, text='save frame as jpg', comman=self.save_frame).pack()
 
         tk.Button(self, text='załaduj plik', comman=self.reload_file).pack()        
         self.combo_list = ttk.Combobox(self, width = 40, textvariable = self.master.file_to_load, values=self.files_list)
@@ -200,6 +201,9 @@ class Frame_right(tk.Frame):
     def make_clip(self):
         self.master.clip.make_video_clip(self.master.draws_states)
 
+    def save_frame(self):
+        self.master.clip.save_frame(self.master.frame_to_display)
+
 class Frame_left(tk.Frame):
     def __init__(self, master: tk.Tk, **kwargs):
         super().__init__(master, **kwargs)
@@ -283,7 +287,7 @@ class Window(tk.Tk):
 
             self.filename = self.file_to_load.get()
             
-            self.filename=f'\\{self.filename}.mp4'
+            self.filename=f'{self.filename}.mp4'
 
             self.frame_to_display=0
 
