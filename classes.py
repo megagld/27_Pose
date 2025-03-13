@@ -1158,12 +1158,14 @@ class Clip:
 
     def display_frame(self, frame_number, draws_states):
 
-        # tworzenie gównej klatki
+        # tworzenie głównej klatki
 
         self.cap.set(1, frame_number)
 
-        _, image = self.cap.read()
+        print(frame_number)
 
+        _, image = self.cap.read()
+        
         # rysowenie widoku boczego
 
         if draws_states.side_frame_draw_state:
@@ -1223,6 +1225,18 @@ class Clip:
 
             out.write(self.montage_clip_image)  # writing the video frame
 
+        import time
+        time.sleep(20)
+
+        file_from = f'{os.getcwd()}\\{output_video_clip_file}'
+        file_to = file_from.replace('.mp4','_60fps.mp4')
+
+        print(file_from)
+        print(file_to)
+        print(f"ffmpeg -y -i {file_from} -vf fps=60 {file_to}")
+
+        os.system(f"ffmpeg -y -i {file_from} -vf fps=60 {file_to}")
+
         print(f"{self.name} gotowe.")
 
     def save_frame(self, frame_to_display):
@@ -1260,7 +1274,7 @@ class Draws_states:
         # kąty zgięcia
         self.right_knee_ang_chart_draw_state            = True
         self.right_hip_ang_chart_draw_state             = True
-        self.right_elbow_ang_chart_draw_state           = True
+        self.right_elbow_ang_chart_draw_state           = False
         self.left_knee_ang_chart_draw_state             = False
         self.left_hip_ang_chart_draw_state              = False
         self.left_elbow_ang_chart_draw_state            = False
@@ -1268,7 +1282,7 @@ class Draws_states:
         # inne
         self.stack_reach_len_chart_draw_state           = False
         self.stack_reach_ang_chart_draw_state           = False
-        self.speed_chart_draw_state                     = False
+        self.speed_chart_draw_state                     = True
 
         # tło wykresów
         self.charts_background_draw_state               = True
@@ -1285,7 +1299,7 @@ class Draws_states:
 
         #################################################
         # boczny widok - wycięta klatka
-        self.side_frame_draw_state                      = True
+        self.side_frame_draw_state                      = False
         self.side_frame_background_draw_state           = True
 
         # szkielet na bocznym widoku
