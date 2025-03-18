@@ -73,15 +73,11 @@ class CanvasImage(tk.Canvas):
         self.paste_image()
         
     def update_view(self, *_) -> None:
-        start = timer()
         # aktualizuje klatkę do wyświetlenia
         self.master.master.clip.display_frame(self.master.master.frame_to_display,
                                               self.master.master.draws_states)
         
         self.open_image()
-
-        end = timer()
-        # print(f'{self.master.master.frame_to_display}:{end - start}')
 
 class Frame_right(tk.Frame):
     def __init__(self, master: tk.Tk, **kwargs):
@@ -116,8 +112,6 @@ class Frame_right(tk.Frame):
         self.scale.pack(side="top", fill="x", expand=False)
 
         self.canvas.pack(expand=True, fill='both', padx=10, pady=10)
-
-
 
 
     def reload_file(self):
@@ -170,10 +164,25 @@ class Frame_right(tk.Frame):
         self.canvas.update_view()
 
     def frame_cnt_forward(self):
+
+        self.master.clip.draws_times=[]
+
+        self.master.clip.add_time_counter('start(frame count +)')
+
         self.master.frame_to_display+=1
+
+        self.master.clip.add_time_counter('dodanie +1 frame count')
+
         self.master.frame_to_display=min(self.master.frame_to_display, self.master.clip.scale_range_max)
-        self.canvas.open_image()
+        
+        self.master.clip.add_time_counter('przed update view')
+        
         self.scale.set(self.master.frame_to_display)
+
+        self.master.clip.add_time_counter('po update view')
+
+        if self.master.draws_states.draws_times_draw_state == True:
+            self.master.clip.draw_times_table_in_terminal()
 
     def frame_cnt_back(self):
         self.master.frame_to_display-=1

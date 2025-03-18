@@ -11,6 +11,8 @@ from general_bm import letterbox_calc
 from functions import *
 import scipy
 import copy
+import time
+from tabulate import tabulate
 
 def angle_between_vectors(u, v):
     dot_product = sum(i * j for i, j in zip(u, v))
@@ -94,6 +96,8 @@ class Point:
         
 class Frame:
     def __init__(self, frame_count, frame_time, kpts, frame_offsets):
+
+        self.image              = None
 
         self.frame_count        = frame_count
         self.frame_time         = frame_time
@@ -623,6 +627,8 @@ class Clip:
 
         self.cap = cv2.VideoCapture(self.vid_path)
 
+        self.draws_times = []
+
         # dane do korekty pozycji x y punktów - ze wzgledu na zmianę formatu video do rozpoznawania "letterbox"
 
         self.left_ofset = 0
@@ -644,7 +650,9 @@ class Clip:
 
         # współczynnik długość w pikselach/metry  - do obliczania prędkości
 
-        self.speed_factor =148
+        self.speed_factor =139
+    
+        # 148  -  wartość przyjmowana do 03.2025  dla pierwszego stolika
         # 180px = 1,22m = 147,5 - pierwszy stolik
         # 170 - dorn 
 
@@ -755,6 +763,9 @@ class Clip:
         self.scale_range_max = self.frames_amount-1
         self.calculate_scale_range()
 
+    def add_time_counter(self, description):
+        self.draws_times.append([description,time.time()])
+
     def calculate_scale_range(self):
         # zakres suwaka ma być od pierwszej do ostaniej klatki na której jest wykryty szkielet
         self.scale_range_min = min(i for i,j in self.frames.items() if j.detected)
@@ -784,7 +795,7 @@ class Clip:
         with open(self.kpts_json_path, "r") as f:
             data = json.load(f)
 
-        for frame_count, data in enumerate(data.items()):
+        for frame_count, data in enumerate(data.items(),start=0):
 
             frame_time, kpts = data
             frame_time = float(frame_time)
@@ -793,6 +804,16 @@ class Clip:
                                              frame_time,
                                              kpts,
                                              self.frame_offsets)
+            
+        success,image = self.cap.read() 
+        frame_count = 1
+        while success:
+            try:
+                success,image = self.cap.read() 
+                self.frames[frame_count].image = image
+            except:
+                print(str(frame_count)+" błąd")
+            frame_count += 1
 
     def update_frames(self):
         for frame in self.frames.values():
@@ -968,7 +989,7 @@ class Clip:
 
     def draw_charts_base(self, image, chart):
 
-        # rysowanie tła kwykresu
+        # rysowanie tła wykresu
         # ustalenie współrzędnych punktów wykresu
         x, y, w, h = (
             0,
@@ -1151,34 +1172,65 @@ class Clip:
                 thickness,
             )
 
-            # usun to poniżej
-            # pos_1 = (20, h+20)
-            # pos_2 = (20+self.speed_factor, h+20)
-            # cv2.line(image, pos_2, pos_1, (0,0,0), 3)
+    def draw_times_table_in_terminal(self):
+
+        main_description = []
+        
+        reference_time = self.draws_times[0][1]*1000
+
+        for data in self.draws_times:
+            data+=[round(1000*(data[1])-reference_time,2)]
+            main_description.append(f'{data[0]} - {data[2]} [ms]')
+            reference_time  = 1000 * (data[1])
+
+        start_time = self.draws_times[0][1]*1000
+        end_time = self.draws_times[-1][1]*1000
+
+        self.draws_times.append(['całość',',',round(end_time-start_time,2)])
+
+        print(tabulate([[i[0],i[2]] for i in self.draws_times], showindex="always"))
+
+        self.draws_times = []
 
     def display_frame(self, frame_number, draws_states):
 
         # tworzenie głównej klatki
 
-        self.cap.set(1, frame_number)
+        # frame_time_to_display = self.frames[frame_number].frame_time
 
-        print(frame_number)
+        # self.cap.set(0, frame_time_to_display)
 
-        _, image = self.cap.read()
+        # _, image = self.cap.read()
+
+        # if self.frames[frame_number].image == None:
+        #     print(frame_number)
+
+        # self.draws_times = []
+
+        self.add_time_counter('start')
+
+        image = copy.deepcopy(self.frames[frame_number].image)
+
+        self.add_time_counter('kopia image')
         
-        # rysowenie widoku boczego
+        # rysowenie widoku bocznego
 
         if draws_states.side_frame_draw_state:
             self.frames[frame_number].draw_side_view(image, draws_states, self.frame_hight_factor)
-            
+        
+        self.add_time_counter('rysowanie widoku bocznego')
+                    
         # rysowanie lini trasy/ środek ciężkości itp.
         
         self.draw_lines(image, draws_states)
+        self.add_time_counter('linie trasy')
 
         # rysowanie lini pomocniczej - wiodącej
 
         if draws_states.leading_line_draw_state == True:
             self.frames[frame_number].draw_leading_line(image)
+        
+        self.add_time_counter('linia pomocnicza')
 
         # rysowanie szkieletów na głównym widoku
         if draws_states.main_skeleton_right_draw_state == True:
@@ -1190,14 +1242,20 @@ class Clip:
         if draws_states.main_skeleton_draw_state == True:
             self.frames[frame_number].draw_skeleton(image)
 
+        self.add_time_counter('szkielety na glownej')
+
         # rysowanie wykresów
 
         self.draw_charts(image, draws_states, frame_number)
+
+        self.add_time_counter('wykresy')
 
         # rysowanie głównego opisu na ramce
 
         if draws_states.main_frame_description == True:
             self.draw_main_frame_description(image, self.frames[frame_number])
+        
+        self.add_time_counter('opis glowny')
 
         # tworzenie ostatecznego obrazu
 
@@ -1206,6 +1264,8 @@ class Clip:
         self.cv2_image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)  # convert frame to RGB
 
         self.image = Image.fromarray(self.cv2_image)
+
+        self.add_time_counter('obróbka ostatecznego obrazu')
 
     def make_video_clip(self, draws_states):
 
@@ -1219,7 +1279,7 @@ class Clip:
             output_video_clip_file, cv2.VideoWriter_fourcc(*"mp4v"), 30, (1920, 1080)
         )
 
-        for frame_number in range(self.frames_amount - 1):
+        for frame_number in range(1, self.frames_amount):
 
             self.display_frame(frame_number, draws_states)
 
@@ -1315,6 +1375,8 @@ class Draws_states:
 
         #################################################
 
+        self.draws_times_draw_state                     = False
+
 class Frame_widgets:
     def __init__(self):
         # pozycje do wyświetlenia jako checkboxy
@@ -1354,7 +1416,9 @@ class Frame_widgets:
                             'side_skeleton_left_draw_state',
                             '',
                             'side_wheel_base_line_draw_state',
-                            'side_head_leading_line_draw_state'
+                            'side_head_leading_line_draw_state',
+                            '',
+                            'draws_times_draw_state'
                             ]
 
 class Chart:
