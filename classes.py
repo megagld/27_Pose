@@ -863,8 +863,11 @@ class Clip:
 
         # ustalenie które wykresy mają być wyświetlane na podstawie obiektu Draws_states
         # ustalenie ilości wykresów  i zestawienie obiektów wykresów
+        
 
         charts_to_draw = []
+
+        self.add_time_counter('czyszczenie listy wykresów')
 
         # iteracja po dostępnych obiektach wykresów i porównanie z obiektem stan druku 'draws_states'
         for chart_name in self.charts.keys():
@@ -873,6 +876,8 @@ class Clip:
                 charts_to_draw.append(self.charts[chart_name])
 
         if not charts_to_draw: return
+
+        self.add_time_counter('iteracja po wykresach')
 
         # generowanie danych wykresów
 
@@ -895,6 +900,8 @@ class Clip:
 
             charts_y_pos += chart.chart_height
 
+        self.add_time_counter('generowanie danych wykresów')
+
         # rysowanie bazy i linii ograniczajacych wykres
 
         if draws_states.charts_background_draw_state == True:
@@ -902,6 +909,8 @@ class Clip:
             for chart in charts_to_draw:
 
                 self.draw_charts_base(image, chart)
+
+        self.add_time_counter('rysowanie bazy i lini ograniczajach')
 
         # rysowanie linii wykresów
 
@@ -917,6 +926,8 @@ class Clip:
                 line_color = (80, 80, 80)
 
             draw_line(image, chart.chart_points_to_draw, color=line_color, thickness=line_thickness)
+
+        self.add_time_counter('rysowanie linii wykresów')
 
         # rysowanie spline wykresów - tylko dla prędkości !!!! - test
 
@@ -934,6 +945,8 @@ class Clip:
 
             draw_line(image, line_to_draw, color=line_color, thickness=line_thickness)
 
+        self.add_time_counter('rysowanie linii spline speed')
+            
         # rysowanie opisów
 
         if draws_states.charts_descriptions_draw_state == True:
@@ -941,6 +954,9 @@ class Clip:
             for chart in charts_to_draw:
 
                 self.draw_charts_descriptions(image, chart, frame_number)
+
+        self.add_time_counter('rysowanie opisów')
+            
          
 
         # rysowanie spline wykresów
@@ -1065,9 +1081,6 @@ class Clip:
 
             else:
                 chart_value_description = str(round(chart.chart_points[frame_number].y))
-
-
-            self.draw_charts_descriptions(image, chart, frame_number)
 
             chart_value_description_loc = (x_pos, y_pos)
 
