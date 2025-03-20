@@ -858,6 +858,11 @@ class Clip:
                     pass
 
             self.charts[chart_name].chart_points = tmp_chart_points_dict
+        
+            # generowanie danych wykresu
+
+            if self.charts[chart_name].smoothed == True:
+                self.charts[chart_name].generate_spline_data()
 
     def draw_charts(self, image, draws_states, frame_number):
 
@@ -934,9 +939,9 @@ class Clip:
         if draws_states.speed_chart_draw_state == True:
         
             # generuje dane wygładzonej krzywej wykresu
-            self.charts['speed_chart'].generate_spline_data()
+            self.charts['speed_chart'].generate_smoothed_line_to_draw()
 
-            self.charts['speed_chart'].generate_line_to_draw(self.charts['speed_chart'].chart_points_smoothed)
+            # self.charts['speed_chart'].generate_line_to_draw(self.charts['speed_chart'].chart_points_smoothed)
             line_to_draw = self.charts['speed_chart'].chart_points_smoothed_to_draw
 
             # setup
@@ -1203,7 +1208,7 @@ class Clip:
 
         print(tabulate([[i[0],i[2]] for i in self.draws_times], showindex="always"))
 
-        self.draws_times = []
+        self.draws_times.pop(-1)
 
     def display_frame(self, frame_number, draws_states):
 
@@ -1218,7 +1223,7 @@ class Clip:
         # if self.frames[frame_number].image == None:
         #     print(frame_number)
 
-        # self.draws_times = []
+        self.draws_times = []
 
         self.add_time_counter('start')
 
@@ -1386,10 +1391,6 @@ class Draws_states:
         # pionowa linia wiodąca - głowa
         self.side_head_leading_line_draw_state          = True
 
-        #################################################
-
-        self.draws_times_draw_state                     = False
-
 class Frame_widgets:
     def __init__(self):
         # pozycje do wyświetlenia jako checkboxy
@@ -1429,9 +1430,7 @@ class Frame_widgets:
                             'side_skeleton_left_draw_state',
                             '',
                             'side_wheel_base_line_draw_state',
-                            'side_head_leading_line_draw_state',
-                            '',
-                            'draws_times_draw_state'
+                            'side_head_leading_line_draw_state'
                             ]
 
 class Chart:
@@ -1468,7 +1467,9 @@ class Chart:
         self.chart_points_to_draw = None    
         self.chart_points_smoothed_to_draw   =   None
 
-    def generate_line_to_draw(self, source):
+        self.draws_times = []
+
+    def generate_line_to_draw(self, source, timeit=False):
 
         #  zebranie danych do rysowania lini wykresu   
         target = copy.deepcopy(source)
@@ -1536,12 +1537,15 @@ class Chart:
 
         self.chart_points_smoothed = [Point(x,y) for x,y in zip(x_range, y_pred_values)]
 
-        # przeskalowanie krzywej do wyświetlanego obrazu
-
-        self.chart_points_smoothed_to_draw =  self.generate_line_to_draw(self.chart_points_smoothed)
-
         # aktualizacja danych o max i min
         self.calc_min_max()
+
+    def generate_smoothed_line_to_draw(self):
+
+        # przeskalowanie krzywej do wyświetlanego obrazu
+
+        self.chart_points_smoothed_to_draw =  self.generate_line_to_draw(self.chart_points_smoothed, True)
+
 
     def calc_min_max(self):
         try:

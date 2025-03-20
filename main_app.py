@@ -83,6 +83,8 @@ class Frame_right(tk.Frame):
     def __init__(self, master: tk.Tk, **kwargs):
         super().__init__(master, **kwargs)
 
+        self.clip = self.master.clip
+
         self.width = self.winfo_width()
 
         self.var = None
@@ -90,18 +92,24 @@ class Frame_right(tk.Frame):
         self.get_files_list()
 
         self.canvas = CanvasImage(self, relief='sunken', bd=2)
-        tk.Button(self, text='przeładuj klasę classes', comman=self.reload).pack()
-        tk.Button(self, text='przeładuj obraz', comman=self.canvas.update_view).pack()
-        tk.Button(self, text='frame count +', comman=self.frame_cnt_forward).pack()
-        tk.Button(self, text='frame count -', comman=self.frame_cnt_back).pack()
-        tk.Button(self, text='bike rotation +', comman=self.bike_rotation_plus).pack()
-        tk.Button(self, text='bike rotation -', comman=self.bike_rotation_minus).pack()
-        tk.Button(self, text='ustaw kąt', comman=self.set_ang).pack()
+        tk.Button(self, text='reload classes', comman=self.reload).pack()
+        tk.Button(self, text='reload obraz', comman=self.canvas.update_view).pack()
+        tk.Button(self, text='frame count +', command=lambda *args: self.frame_cnt_change(1)).pack()        
+        tk.Button(self, text='frame count -', command=lambda *args: self.frame_cnt_change(-1)).pack()
+
+        tk.Button(self, text='bike rotation +5', command=lambda *args: self.bike_rotation_change(5)).pack()
+        tk.Button(self, text='bike rotation +1', command=lambda *args: self.bike_rotation_change(1)).pack()
+        tk.Button(self, text='bike rotation -1', command=lambda *args: self.bike_rotation_change(-1)).pack()
+        tk.Button(self, text='bike rotation -5', command=lambda *args: self.bike_rotation_change(-5)).pack()
+
+        tk.Button(self, text='set ang', comman=self.set_ang).pack()
 
         tk.Button(self, text='make clip', comman=self.make_clip).pack()
         tk.Button(self, text='save frame as jpg', comman=self.save_frame).pack()
 
-        tk.Button(self, text='załaduj plik', comman=self.reload_file).pack()        
+        tk.Button(self, text='load file', comman=self.load_file).pack()    
+        tk.Button(self, text='count drawing times', comman=self.count_drawing_times).pack()        
+
         self.combo_list = ttk.Combobox(self, width = 40, textvariable = self.master.file_to_load, values=self.files_list)
         self.combo_list.pack()
 
@@ -114,14 +122,16 @@ class Frame_right(tk.Frame):
         self.canvas.pack(expand=True, fill='both', padx=10, pady=10)
 
 
-    def reload_file(self):
+    def count_drawing_times(self):
+        self.frame_cnt_change(1)
+        self.master.clip.draw_times_table_in_terminal()
+
+    def load_file(self):
         self.master.load_file()
         self.calc_scale_range()
         self.scale.set(self.master.clip.scale_range_min)
 
-
     def calc_scale_range(self):
-
         self.scale_from = self.master.clip.scale_range_min
         self.scale_to = self.master.clip.scale_range_max
 
@@ -163,42 +173,14 @@ class Frame_right(tk.Frame):
         self.master.frame_to_display=int(float(x))
         self.canvas.update_view()
 
-    def frame_cnt_forward(self):
-
-        self.master.clip.draws_times=[]
-
-        self.master.clip.add_time_counter('start(frame count +)')
-
-        self.master.frame_to_display+=1
-
-        self.master.clip.add_time_counter('dodanie +1 frame count')
-
+    def frame_cnt_change(self,amount):
+        self.master.frame_to_display+=amount
         self.master.frame_to_display=min(self.master.frame_to_display, self.master.clip.scale_range_max)
-        
-        self.master.clip.add_time_counter('przed update view')
-        
-        self.scale.set(self.master.frame_to_display)
-
-        self.master.clip.add_time_counter('po update view')
-
-        if self.master.draws_states.draws_times_draw_state == True:
-            self.master.clip.draw_times_table_in_terminal()
-
-    def frame_cnt_back(self):
-        self.master.frame_to_display-=1
         self.master.frame_to_display=max(self.master.frame_to_display, self.master.clip.scale_range_min)
-        self.canvas.open_image()
         self.scale.set(self.master.frame_to_display)
 
-    def bike_rotation_plus(self):
-        self.master.clip.frames[self.master.frame_to_display].bike_rotation+=1
-
-        self.canvas.open_image()
-        self.scale.set(self.master.frame_to_display)
-
-    def bike_rotation_minus(self):
-        self.master.clip.frames[self.master.frame_to_display].bike_rotation-=1
-
+    def bike_rotation_change(self, amount):
+        self.master.clip.frames[self.master.frame_to_display].bike_rotation+=amount
         self.canvas.open_image()
         self.scale.set(self.master.frame_to_display)
 
@@ -279,7 +261,7 @@ class Window(tk.Tk):
         self.draws_states = classes.Draws_states()
 
         # tworzy switch do aktualizacji klatki po zmianie checkboxów, 
-        # zmienia się w lewy Framie, a funkcja zbindowana jest w canvie
+        # zmienia się w lewy Frame, a funkcja zbindowana jest w canvie
 
         self.checkboxes_changed = tk.BooleanVar()
 
@@ -287,8 +269,8 @@ class Window(tk.Tk):
 
         self.minsize(800, 600)
         
-        self.frame_1 = Frame_left(self).pack(side='left', fill='both', expand=False)
-        self.frame_2 = Frame_right(self).pack(side='right', fill='both', expand=True)
+        self.frame_left = Frame_left(self).pack(side='left', fill='both', expand=False)
+        self.right = Frame_right(self).pack(side='right', fill='both', expand=True)
 
     def load_file(self):
 
