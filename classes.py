@@ -1139,8 +1139,8 @@ class Clip:
             speed_dist = round(frame.speed_dist_m,3)
             speed_time = round(frame.speed_time,1)
         except:
-            speed_dist = '-'
-            speed_time = '-'
+            speed_dist = 0
+            speed_time = 0
 
         try:
             self.max_speed = round(self.charts['speed_chart'].max_val)
@@ -1151,18 +1151,29 @@ class Clip:
             self.min_speed = '-'
 
 
-        main_description = [f'czas - {round(frame.frame_time)} [ms]',
-                            f'klatka - {frame.frame_count}/{self.frames_amount}',
-                            f'{speed_dist} [m]/{speed_time} [ms]',
-                            f'V max/min - {self.max_speed}/{self.min_speed} [km/h]',
-                            f'wsp. dlugosci - {self.speed_factor} [px/metr]'
+        # main_description = [f'czas - {round(frame.frame_time)} [ms]',
+        #                     f'klatka - {frame.frame_count}/{self.frames_amount}',
+        #                     f'{speed_dist} [m]/{speed_time} [ms]',
+        #                     f'V max/min - {self.max_speed}/{self.min_speed} [km/h]',
+        #                     f'wsp. dlugosci - {self.speed_factor} [px/metr]'
+        #                     ]
+
+        main_description = ['{:04d} [ms] | {:03d}/{} | {:.3f} [m]/{} [ms] | {} [px/metr]'.format(
+                                    round(frame.frame_time),
+                                    frame.frame_count,
+                                    self.frames_amount,
+                                    speed_dist,
+                                    speed_time,
+                                    self.speed_factor),
+
+                            f'V max/min - {self.max_speed}/{self.min_speed} [km/h]'
                             ]
-        
+
         # rysowanie podkładu
         x, y, w, h = (
             0,
             0,
-            int(450 * self.frame_hight_factor),
+            int(900 * self.frame_hight_factor),
             int(50 * len(main_description) * self.frame_hight_factor),
             )
         sub_img = image[y : y + h, x : x + w]

@@ -199,6 +199,8 @@ class Frame_left(tk.Frame):
     def __init__(self, master: tk.Tk, **kwargs):
         super().__init__(master, **kwargs)
 
+        self.clip = self.master.clip
+
         self.create_widgets()
 
     def create_widgets(self): 
@@ -248,6 +250,8 @@ class Frame_left(tk.Frame):
 class Window(tk.Tk):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
+
+        self.clip = None
 
         # ustala styl widgetów
 
