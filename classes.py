@@ -941,8 +941,12 @@ class Clip:
             # generuje dane wygładzonej krzywej wykresu
             self.charts['speed_chart'].generate_smoothed_line_to_draw()
 
+            self.add_time_counter('generuje dane do krzywej')
+
             # self.charts['speed_chart'].generate_line_to_draw(self.charts['speed_chart'].chart_points_smoothed)
             line_to_draw = self.charts['speed_chart'].chart_points_smoothed_to_draw
+
+            self.add_time_counter('rysowanie linii wykresów')
 
             # setup
             line_thickness = 2
@@ -1166,7 +1170,7 @@ class Clip:
                                     speed_time,
                                     self.speed_factor),
 
-                            f'V max/min - {self.max_speed}/{self.min_speed} [km/h]'
+                            f'V max/min/delta - {self.max_speed} / {self.min_speed} / {self.max_speed-self.min_speed} [km/h]'
                             ]
 
         # rysowanie podkładu
@@ -1222,6 +1226,7 @@ class Clip:
         self.draws_times.pop(-1)
 
     def display_frame(self, frame_number, draws_states):
+        global frame_to_display
 
         # tworzenie głównej klatki
 
@@ -1480,7 +1485,7 @@ class Chart:
 
         self.draws_times = []
 
-    def generate_line_to_draw(self, source, timeit=False):
+    def generate_line_to_draw(self, source):
 
         #  zebranie danych do rysowania lini wykresu   
         target = copy.deepcopy(source)
@@ -1555,7 +1560,7 @@ class Chart:
 
         # przeskalowanie krzywej do wyświetlanego obrazu
 
-        self.chart_points_smoothed_to_draw =  self.generate_line_to_draw(self.chart_points_smoothed, True)
+        self.chart_points_smoothed_to_draw =  self.generate_line_to_draw(self.chart_points_smoothed)
 
 
     def calc_min_max(self):
