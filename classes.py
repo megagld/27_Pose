@@ -13,6 +13,7 @@ import scipy
 import copy
 import time
 from tabulate import tabulate
+import tkinter as tk
 
 def angle_between_vectors(u, v):
     dot_product = sum(i * j for i, j in zip(u, v))
@@ -79,6 +80,7 @@ def draw_line(image, line_to_draw, color=(0, 0, 0), thickness=3):
     
     line_to_draw.clear()
     
+    
 class Point:
     def __init__(self, pos_x, pos_y, sk_id=None):
         self.sk_id = sk_id
@@ -93,7 +95,8 @@ class Point:
 
     def disp_pos(self):
         return (int(self.x), int(self.y))
-        
+
+
 class Frame:
     def __init__(self, frame_count, frame_time, kpts, frame_offsets):
 
@@ -617,6 +620,7 @@ class Frame:
             line_to_draw = [pos_1,pos_2]
 
             draw_line(image, line_to_draw, color=leading_line_color, thickness=leading_line_thickness)
+
 
 class Clip:
     def __init__(self, vid_name):
@@ -1350,104 +1354,6 @@ class Clip:
 
         print(f"{self.name} gotowe.")
 
-class Draws_states:
-    # ustala co ma być wyświetlane
-    def __init__(self):
-
-        #główna klatka
-        self.main_frame_draw_state                      = True
-        self.main_frame_background_draw_state           = True
-        self.main_frame_description                     = True
-
-        # szkielet
-        self.main_skeleton_draw_state                   = False
-        self.main_skeleton_right_draw_state             = True
-        self.main_skeleton_left_draw_state              = False
-
-        # wykresy
-        # kąty zgięcia
-        self.right_knee_ang_chart_draw_state            = True
-        self.right_hip_ang_chart_draw_state             = True
-        self.right_elbow_ang_chart_draw_state           = False
-        self.left_knee_ang_chart_draw_state             = False
-        self.left_hip_ang_chart_draw_state              = False
-        self.left_elbow_ang_chart_draw_state            = False
-
-        # inne
-        self.stack_reach_len_chart_draw_state           = False
-        self.stack_reach_ang_chart_draw_state           = False
-        self.speed_chart_draw_state                     = True
-
-        # tło wykresów
-        self.charts_background_draw_state               = True
-
-        # opisy wykresów
-        self.charts_descriptions_draw_state             = True
-
-        # linia wiodąca pionowa, pomocnicza
-        self.leading_line_draw_state                    = True
-
-        # linie na głównej klatce
-        self.trace_line_draw_state                      = True
-        self.center_of_gravity_line_draw_state          = False
-
-        #################################################
-        # boczny widok - wycięta klatka
-        self.side_frame_draw_state                      = False
-        self.side_frame_background_draw_state           = True
-
-        # szkielet na bocznym widoku
-        self.side_skeleton_draw_state                   = False
-        self.side_skeleton_right_draw_state             = True
-        self.side_skeleton_left_draw_state              = False   
-
-        # linia bazy kół na bocznym widoku
-        self.side_wheel_base_line_draw_state            = True
-
-        # pionowa linia wiodąca - głowa
-        self.side_head_leading_line_draw_state          = True
-
-class Frame_widgets:
-    def __init__(self):
-        # pozycje do wyświetlenia jako checkboxy
-        self.labels_to_display  =   ['',
-                            'main_frame_draw_state',
-                            'main_frame_background_draw_state',
-                            '',
-                            'main_frame_description',
-                            '',
-                            'main_skeleton_draw_state',
-                            'main_skeleton_right_draw_state',
-                            'main_skeleton_left_draw_state',
-                            '',
-                            'right_knee_ang_chart_draw_state',
-                            'right_hip_ang_chart_draw_state',
-                            'right_elbow_ang_chart_draw_state',
-                            'left_knee_ang_chart_draw_state',
-                            'left_hip_ang_chart_draw_state',
-                            'left_elbow_ang_chart_draw_state',
-                            '',
-                            'stack_reach_len_chart_draw_state',
-                            'stack_reach_ang_chart_draw_state',
-                            'speed_chart_draw_state',
-                            '',
-                            'charts_background_draw_state',
-                            'charts_descriptions_draw_state',
-                            'leading_line_draw_state',
-                            '',
-                            'trace_line_draw_state',
-                            'center_of_gravity_line_draw_state',
-                            '',
-                            'side_frame_draw_state',
-                            'side_frame_background_draw_state',
-                            '',
-                            'side_skeleton_draw_state',
-                            'side_skeleton_right_draw_state',
-                            'side_skeleton_left_draw_state',
-                            '',
-                            'side_wheel_base_line_draw_state',
-                            'side_head_leading_line_draw_state'
-                            ]
 
 class Chart:
     def __init__(self,
@@ -1573,6 +1479,7 @@ class Chart:
                 self.min_val = min(point.y for point in self.chart_points.values())
         except:
             pass
+
 
 class Line:
 
