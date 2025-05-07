@@ -1,13 +1,14 @@
 import importlib
 import classes
 import os
-
+from uuid import uuid4
 
 class Manager:
     def __init__(self):
 
         self.clip = None
         self.frame_to_display = 0
+        self.swich_id = uuid4()
 
         # tworzy obiekt ze stanem pozycji do wyświetlenia
         self.draws_states = DrawsStates()
@@ -69,8 +70,9 @@ class Manager:
         self.scale.config(to=self.scale_to)
 
     def bike_rotation_change(self, amount):
+        self.swich_id = uuid4()
         self.clip.frames[self.frame_to_display].bike_rotation += amount
-        self.canvas.open_image()
+        self.canvas.update_view()
         self.scale.set(self.frame_to_display)  # po co to? do kontroli
 
     def set_ang(self):
@@ -78,7 +80,7 @@ class Manager:
                                           self.clip.frames[self.frame_to_display].bike_rotation))
 
     def make_clip(self):
-        self.clip.make_video_clip(self.draws_states)
+        self.clip.make_video_clip(self.draws_states, self.swich_id)
 
     def save_frame(self):
         self.clip.save_frame(self.frame_to_display)

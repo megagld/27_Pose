@@ -1,26 +1,25 @@
-import cv2
+import tkinter as tk
 
-cap = cv2.VideoCapture('test.mp4')
-frame_times=[]
 
-frame_no = 0
-while(cap.isOpened()):
-    frame_exists, curr_frame = cap.read()
-    if frame_exists:
-        print("for frame : " + str(frame_no) + "   timestamp is: ", str(cap.get(cv2.CAP_PROP_POS_MSEC)))
-        frame_times.append(cap.get(cv2.CAP_PROP_POS_MSEC))
-    else:
-        break
-    frame_no += 1
+def set_mousewheel(widget, command):
+    """Activate / deactivate mousewheel scrolling when 
+    cursor is over / not over the widget respectively."""
+    widget.bind("<Enter>", lambda _: widget.bind_all('<MouseWheel>', command))
+    widget.bind("<Leave>", lambda _: widget.unbind_all('<MouseWheel>'))
 
-cap.release()
 
-ftp=[]
-print(frame_times)
-for i,j in zip(frame_times,frame_times[1:]):
-    print(1000/(i-j))
-    ftp.append(1000/(i-j))
+root = tk.Tk()
+root.geometry('300x300')
 
-print('x'*10)
-print(min(ftp[1:]))
-print(max(ftp[1:]))
+l0 = tk.Label(root, text='Hover and scroll on the labels.')
+l0.pack(padx=10, pady=10)
+
+l1 = tk.Label(root, text='0', bg='pink', width=10, height=5)
+l1.pack(pady=10)
+set_mousewheel(l1, lambda e: l1.config(text=e.delta))
+
+l2 = tk.Label(root, text='0', bg='cyan', width=10, height=5)
+l2.pack(pady=10)
+set_mousewheel(l2, lambda e: l2.config(text=e.delta))
+
+root.mainloop()

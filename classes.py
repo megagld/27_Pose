@@ -14,6 +14,7 @@ import copy
 import time
 from tabulate import tabulate
 import tkinter as tk
+import ujson
 
 def angle_between_vectors(u, v):
     dot_product = sum(i * j for i, j in zip(u, v))
@@ -66,6 +67,9 @@ def get_mid(kpts, sk_id_1, sk_id_2):
 
 def draw_line(image, line_to_draw, color=(0, 0, 0), thickness=3):
 
+    if isinstance(line_to_draw, dict):     
+        line_to_draw = [point for _,point in sorted(line_to_draw.items())]
+
     # rysowanie wykresu na podstawie listy punktów
 
     for x_axis_point in range(len(line_to_draw)-1):
@@ -77,9 +81,7 @@ def draw_line(image, line_to_draw, color=(0, 0, 0), thickness=3):
         pos_2 = pos_2.disp_pos()      
 
         cv2.line(image, pos_1, pos_2, color, thickness)
-    
-    line_to_draw.clear()
-    
+   
     
 class Point:
     def __init__(self, pos_x, pos_y, sk_id=None):
@@ -101,6 +103,8 @@ class Frame:
     def __init__(self, frame_count, frame_time, kpts, frame_offsets):
 
         self.image              = None
+        self.image_to_draw      = None
+        self.swich_id           = None
 
         self.frame_count        = frame_count
         self.frame_time         = frame_time
@@ -863,10 +867,18 @@ class Clip:
 
             self.charts[chart_name].chart_points = tmp_chart_points_dict
         
+
+
+
             # generowanie danych wykresu
 
             if self.charts[chart_name].smoothed == True:
                 self.charts[chart_name].generate_spline_data()
+
+            # wykonanie kopii obiektów z punktami do wyświetlenia - żeby przyspieszyć generowanie dany później
+            
+            self.charts[chart_name].chart_points_to_draw = copy.deepcopy(self.charts[chart_name].chart_points)
+            self.charts[chart_name].chart_points_smoothed_to_draw = copy.deepcopy(self.charts[chart_name].chart_points_smoothed)
 
     def draw_charts(self, image, draws_states, frame_number):
 
@@ -905,7 +917,8 @@ class Clip:
             chart.scale_factor = self.frame_hight_factor
             chart.chart_height = (chart.range_max - chart.range_min) * int(self.frame_hight_factor) * chart.base_scale
 
-            chart.chart_points_to_draw = chart.generate_line_to_draw(chart.chart_points)
+            chart.generate_line_to_draw(chart.chart_points,
+                                        chart.chart_points_to_draw)
 
             charts_y_pos += chart.chart_height
 
@@ -941,11 +954,13 @@ class Clip:
         # rysowanie spline wykresów - tylko dla prędkości !!!! - test
 
         if draws_states.speed_chart_draw_state == True:
+
+            self.add_time_counter('przed generuje dane do krzywej')
         
             # generuje dane wygładzonej krzywej wykresu
             self.charts['speed_chart'].generate_smoothed_line_to_draw()
 
-            self.add_time_counter('generuje dane do krzywej')
+            self.add_time_counter('po generuje dane do krzywej')
 
             # self.charts['speed_chart'].generate_line_to_draw(self.charts['speed_chart'].chart_points_smoothed)
             line_to_draw = self.charts['speed_chart'].chart_points_smoothed_to_draw
@@ -1015,6 +1030,11 @@ class Clip:
                     pass
 
             self.lines[line_name].line_points = tmp_line_points_dict
+           
+            # wykonanie kopii obiektów z punktami do wyświetlenia - żeby przyspieszyć generowanie dany później
+            
+            self.lines[line_name].line_points_to_draw = copy.deepcopy(self.lines[line_name].line_points)
+            self.lines[line_name].line_points_to_draw_to_draw = copy.deepcopy(self.lines[line_name].line_points_to_draw)
 
     def draw_charts_base(self, image, chart):
 
@@ -1119,7 +1139,7 @@ class Clip:
             line_name_draw_state_atr = line_name + '_draw_state'
             if getattr(draws_states, line_name_draw_state_atr) == True:
 
-                line.line_points_to_draw = line.generate_line_to_draw(line.line_points)
+                # line.line_points_to_draw = line.generate_line_to_draw(line.line_points)
                 line_to_draw = line.line_points_to_draw
 
                 # setup
@@ -1153,10 +1173,12 @@ class Clip:
         try:
             self.max_speed = round(self.charts['speed_chart'].max_val)
             self.min_speed = round(self.charts['speed_chart'].min_val)
+            self.delta = self.max_speed - self.min_speed
 
         except:
             self.max_speed = '-'
             self.min_speed = '-'
+            self.delta = '-'
 
 
         # main_description = [f'czas - {round(frame.frame_time)} [ms]',
@@ -1174,7 +1196,7 @@ class Clip:
                                     speed_time,
                                     self.speed_factor),
 
-                            f'V max/min/delta - {self.max_speed} / {self.min_speed} / {self.max_speed-self.min_speed} [km/h]'
+                            f'V max/min/delta - {self.max_speed} / {self.min_speed} / {self.delta} [km/h]'
                             ]
 
         # rysowanie podkładu
@@ -1229,83 +1251,89 @@ class Clip:
 
         self.draws_times.pop(-1)
 
-    def display_frame(self, frame_number, draws_states):
-        global frame_to_display
+    def display_frame(self, frame_number, draws_states, swich_id=False):
 
-        # tworzenie głównej klatki
-
-        # frame_time_to_display = self.frames[frame_number].frame_time
-
-        # self.cap.set(0, frame_time_to_display)
-
-        # _, image = self.cap.read()
-
-        # if self.frames[frame_number].image == None:
-        #     print(frame_number)
+        # jeżeli nie było zmiany swich_id to obraz zostaje pobrany z obiektu Frame,
+        # jeżeli była zmiana - obraz jest tworzony, a potem zapisany do obiektu Frame
 
         self.draws_times = []
 
-        self.add_time_counter('start')
+        if  swich_id == self.frames[frame_number].swich_id:
 
-        image = copy.deepcopy(self.frames[frame_number].image)
 
-        self.add_time_counter('kopia image')
-        
-        # rysowenie widoku bocznego
+            self.add_time_counter('start - to samo id')
 
-        if draws_states.side_frame_draw_state:
-            self.frames[frame_number].draw_side_view(image, draws_states, self.frame_hight_factor)
-        
-        self.add_time_counter('rysowanie widoku bocznego')
-                    
-        # rysowanie lini trasy/ środek ciężkości itp.
-        
-        self.draw_lines(image, draws_states)
-        self.add_time_counter('linie trasy')
+            self.image = self.frames[frame_number].image_to_draw
 
-        # rysowanie lini pomocniczej - wiodącej
+            self.add_time_counter('koniec - to samo id')
 
-        if draws_states.leading_line_draw_state == True:
-            self.frames[frame_number].draw_leading_line(image)
-        
-        self.add_time_counter('linia pomocnicza')
+        else:
 
-        # rysowanie szkieletów na głównym widoku
-        if draws_states.main_skeleton_right_draw_state == True:
-            self.frames[frame_number].draw_skeleton_right(image)
+            self.frames[frame_number].swich_id = swich_id
 
-        if draws_states.main_skeleton_left_draw_state == True:
-            self.frames[frame_number].draw_skeleton_left(image)
+            self.add_time_counter('start')
 
-        if draws_states.main_skeleton_draw_state == True:
-            self.frames[frame_number].draw_skeleton(image)
+            image = copy.deepcopy(self.frames[frame_number].image)
 
-        self.add_time_counter('szkielety na glownej')
+            self.add_time_counter('kopia image')
+            
+            # rysowenie widoku bocznego
 
-        # rysowanie wykresów
+            if draws_states.side_frame_draw_state:
+                self.frames[frame_number].draw_side_view(image, draws_states, self.frame_hight_factor)
+            
+            self.add_time_counter('rysowanie widoku bocznego')
+                        
+            # rysowanie lini trasy/ środek ciężkości itp.
+            
+            self.draw_lines(image, draws_states)
+            self.add_time_counter('linie trasy')
 
-        self.draw_charts(image, draws_states, frame_number)
+            # rysowanie lini pomocniczej - wiodącej
 
-        self.add_time_counter('wykresy')
+            if draws_states.leading_line_draw_state == True:
+                self.frames[frame_number].draw_leading_line(image)
+            
+            self.add_time_counter('linia pomocnicza')
 
-        # rysowanie głównego opisu na ramce
+            # rysowanie szkieletów na głównym widoku
+            if draws_states.main_skeleton_right_draw_state == True:
+                self.frames[frame_number].draw_skeleton_right(image)
 
-        if draws_states.main_frame_description == True:
-            self.draw_main_frame_description(image, self.frames[frame_number])
-        
-        self.add_time_counter('opis glowny')
+            if draws_states.main_skeleton_left_draw_state == True:
+                self.frames[frame_number].draw_skeleton_left(image)
 
-        # tworzenie ostatecznego obrazu
+            if draws_states.main_skeleton_draw_state == True:
+                self.frames[frame_number].draw_skeleton(image)
 
-        self.montage_clip_image = image
+            self.add_time_counter('szkielety na glownej')
 
-        self.cv2_image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)  # convert frame to RGB
+            # rysowanie wykresów
 
-        self.image = Image.fromarray(self.cv2_image)
+            self.draw_charts(image, draws_states, frame_number)
 
-        self.add_time_counter('obróbka ostatecznego obrazu')
+            self.add_time_counter('wykresy')
 
-    def make_video_clip(self, draws_states):
+            # rysowanie głównego opisu na ramce
+
+            if draws_states.main_frame_description == True:
+                self.draw_main_frame_description(image, self.frames[frame_number])
+            
+            self.add_time_counter('opis glowny')
+
+            # tworzenie ostatecznego obrazu
+
+            self.montage_clip_image = image
+
+            self.cv2_image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)  # convert frame to RGB
+
+            self.image = Image.fromarray(self.cv2_image)
+
+            self.frames[frame_number].image_to_draw = self.image
+
+            self.add_time_counter('obróbka ostatecznego obrazu')
+
+    def make_video_clip(self, draws_states, swich_id):
 
         output_folder = "_clips"
 
@@ -1391,37 +1419,38 @@ class Chart:
 
         self.draws_times = []
 
-    def generate_line_to_draw(self, source):
-
-        #  zebranie danych do rysowania lini wykresu   
-        target = copy.deepcopy(source)
-
-        # jeśli dane są w postaci słownika wg klatek
+    def generate_line_to_draw(self, source, target):
+        
         if isinstance(target, dict):     
-            target = [point for _,point in sorted(target.items())]
+
+            for frame, point in target.items():
+                # skalowanie wykresu
+                point.y = source[frame].y * self.scale_factor * self.base_scale
+
+                # redukcja do wartości minimalnej
+                point.y = point.y - self.range_min * self.scale_factor * self.base_scale
+                    
+                # odwracanie wykresu
+                if not self.reverse:
+                    point.y = -1 * point.y + (self.range_max - self.range_min) * self.scale_factor * self.base_scale
+                
+                # ustalenie pozycji wykresu
+                point.y = point.y + self.chart_y_pos
+
+        else: # jeśli dane są w listach
+            for source_point, target_point in zip(source, target):
+                # skalowanie wykresu
+                target_point.y = source_point.y * self.scale_factor * self.base_scale
     
-        # skalowanie wykresu
-        for point in target:
-            point.y = point.y * self.scale_factor * self.base_scale
-
-        # redukcja do wartości minimalnej
-        for point in target:
-            point.y = point.y - self.range_min * self.scale_factor * self.base_scale
-
-        # odwracanie wykresu
-        if not self.reverse:
-            for point in target:
-                point.y = -1 * point.y + (self.range_max - self.range_min) * self.scale_factor * self.base_scale
-
-        # ustalenie pozycji wykresu
-        for point in target:
-            point.y = point.y + self.chart_y_pos
-
-        # aktualizacja danych o max i min
-        self.calc_min_max()
-
-        # zwraca listę punktów Point
-        return target
+                # redukcja do wartości minimalnej
+                target_point.y = target_point.y - self.range_min * self.scale_factor * self.base_scale
+                    
+                # odwracanie wykresu
+                if not self.reverse:
+                    target_point.y = -1 * target_point.y + (self.range_max - self.range_min) * self.scale_factor * self.base_scale
+                
+                # ustalenie pozycji wykresu
+                target_point.y = target_point.y + self.chart_y_pos
 
     def generate_spline_data(self):
 
@@ -1466,20 +1495,47 @@ class Chart:
 
         # przeskalowanie krzywej do wyświetlanego obrazu
 
-        self.chart_points_smoothed_to_draw =  self.generate_line_to_draw(self.chart_points_smoothed)
-
+        self.generate_line_to_draw(self.chart_points_smoothed,
+                                   self.chart_points_smoothed_to_draw)
 
     def calc_min_max(self):
+        # oblicza prędkość max dla pierwszej połowy odcinka (na dojezdzie)
+        # oblicza prędkość min z pominięciem początku i końca (+-0,5m)
+
         try:
             if self.smoothed == True:
-                self.max_val = max(point.y for point in self.chart_points_smoothed)
-                self.min_val = min(point.y for point in self.chart_points_smoothed)
+                self.max_val = max(point.y for point in self.chart_points_smoothed[:len(self.chart_points_smoothed)//2])
+                self.min_val = min(point.y for point in self.chart_points_smoothed[3:-3])
             else:
-                self.max_val = max(point.y for point in self.chart_points.values())
-                self.min_val = min(point.y for point in self.chart_points.values())
+                self.max_val = max(point.y for point in self.chart_points.values()[:len(self.chart_points.values())//2])
+                self.min_val = min(point.y for point in self.chart_points.values()[3:-3])
         except:
             pass
 
+    def add_time_counter(self, description):
+        self.draws_times.append([description,time.time()])
+
+    def draw_times_table_in_terminal(self):
+
+        main_description = []
+        
+        reference_time = self.draws_times[0][1]*1000
+
+        for data in self.draws_times:
+            data+=[round(1000*(data[1])-reference_time,2)]
+            main_description.append(f'{data[0]} - {data[2]} [ms]')
+            reference_time  = 1000 * (data[1])
+
+        start_time = self.draws_times[0][1]*1000
+        end_time = self.draws_times[-1][1]*1000
+
+        self.draws_times.append(['całość',',',round(end_time-start_time,2)])
+
+        print(tabulate([[i[0],i[2]] for i in self.draws_times], showindex="always"))
+
+        self.draws_times.pop(-1)
+        self.draws_times =[]
+    
 
 class Line:
 
@@ -1506,19 +1562,3 @@ class Line:
         
         self.line_points_to_draw = None    
         self.line_points_smoothed_to_draw   =   None
-
-    def generate_line_to_draw(self, source):
-        
-        #  zebranie danych do rysowania lini    
-        target = copy.deepcopy(source)
-
-        # jeśli dane są w postaci słownika wg klatek
-        if isinstance(target, dict):     
-            target = [point for _,point in sorted(target.items())]
-
-        # zwraca listę punktów Point
-        return target
-
-    def generate_spline_data(self):
-
-        pass
