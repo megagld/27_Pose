@@ -18,11 +18,44 @@ class CanvasImage(tk.Canvas):
 
         self.width, self.height = 0, 0
         self.center_x, self.center_y = 0, 0
+
+        self.resized_image_width = 0
+        self.orginal_image_width = 0
         self.bind('<Configure>', self.update_values)
 
         manager.checkboxes_changed.trace_add("write", self.update_view)
+        
+        self.bind("<Button-1>", self._on_button_1)
+        self.bind("<MouseWheel>", self._on_mousewheel)
+        self.bind("<Button-3>", self._on_button_3)
+
+    def _on_button_1(self,event):
+
+        # względna pozycja x myszy na obnrazie przeskalowanym
+        relative_mouse_position = (event.x - (self.width-self.resized_image_width)/2)/self.resized_image_width
+        # bezwzględna pozycja myszy na obrazie orginalnym
+        absolut_mouse_position = relative_mouse_position * self.orginal_image_width
+
+        for frame_count, frame in manager.clip.frames.items():
+            if frame.detected and frame.trace_point.x > absolut_mouse_position:
+                manager.frame_to_display = frame_count
+                break
+
+        # manager.frame_to_display = 100
+        manager.scale.set(manager.frame_to_display)
 
 
+    def _on_button_3(self,event):
+
+        manager.frame_cnt_change(1)
+
+    def _on_mousewheel(self, event):
+
+        if event.delta==-120:
+            manager.frame_cnt_change(-5)
+        elif event.delta==120:
+            manager.frame_cnt_change(+5)
+    
     def update_values(self, *_) -> None:
 
         self.width = self.winfo_width()
@@ -52,6 +85,9 @@ class CanvasImage(tk.Canvas):
         new_height = int(image_height * ratio)
         scaled_image = self.source_image.resize((new_width, new_height))
         self.image = ImageTk.PhotoImage(scaled_image)
+
+        self.resized_image_width = new_width
+        self.orginal_image_width = image_width
 
     def paste_image(self) -> None:
         self.image_id = self.create_image(
@@ -250,21 +286,6 @@ class Window(tk.Tk):
         self.frame_right_bottom = Frame_right_bottom(self).pack(
             fill='both',
             expand=True)
-
-        self.bind_all("<MouseWheel>", self._on_mousewheel)
-        self.bind_all("<Button-3>", self._on_button_3)
-
-    
-    def _on_mousewheel(self, event):
-        print(event)
-        if event.delta==-120:
-            manager.frame_cnt_change(-5)
-        elif event.delta==120:
-            manager.frame_cnt_change(+5)
-
-    def _on_button_3(self,event):
-        # print(event)
-        manager.frame_cnt_change(1)
 
 
 if __name__ == '__main__':

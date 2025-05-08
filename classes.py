@@ -1457,15 +1457,17 @@ class Chart:
         # przygpotowanie punktów do oblicznia splina ( x musi być rosnący !
         # pobranie danych
 
-        x, y = [], []
+        all_x, all_y = [], []
 
         for point in [point for _,point in sorted(self.chart_points.items())]:
 
-            x.append(point.x)
-            y.append(point.y)
+            all_x.append(point.x)
+            all_y.append(point.y)
 
-        x = np.array(x)
-        y = np.array(y)
+        # usunięcie 4 początkowych i 2 koncowych punktów  - zazwyczaj są niedokładne   
+
+        x = np.array(all_x[4:-2])
+        y = np.array(all_y[4:-2])
 
         from sklearn.preprocessing import PolynomialFeatures
         from sklearn.linear_model import LinearRegression
@@ -1482,7 +1484,7 @@ class Chart:
         poly_reg_model.fit(poly_features, y)
 
         # ustalenie wartości dla osi x i oblicznie y wg. fit polynomial
-        x_range = np.array(range(min(x), max(x)))
+        x_range = np.array(range(min(all_x), max(all_x)))
         
         y_pred_values = poly_reg_model.predict(poly.fit_transform(x_range.reshape(-1, 1)))
 

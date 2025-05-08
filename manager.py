@@ -30,15 +30,6 @@ class Manager:
         # lista rozwijana
         self.combo_list = None
 
-
-    def reload_clip(self):
-            
-        self.filename = self.file_to_load.get()
-
-        if self.filename !="Select From List":
-        
-            self.clip=classes.Clip(f'{self.filename}.mp4')
-
     def frame_cnt_change(self, amount):
 
         self.frame_to_display += amount
@@ -57,9 +48,14 @@ class Manager:
 
     def load_file(self):
 
-        self.reload_clip()
-        self.calc_scale_range()
-        self.scale.set(self.clip.scale_range_min)
+        self.filename = self.file_to_load.get()
+
+        if self.filename !="Select From List":
+        
+            self.clip=classes.Clip(f'{self.filename}.mp4')
+
+            self.calc_scale_range()
+            self.scale.set(self.clip.scale_range_min)
 
     def calc_scale_range(self):
 
