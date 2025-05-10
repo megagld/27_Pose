@@ -1,2 +1,0 @@
-speed chart - +50ms
-charts description +60ms na każdy
