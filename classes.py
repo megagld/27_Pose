@@ -8,7 +8,6 @@ from unidecode import unidecode
 from PIL import Image, ImageTk
 from ffprobe import FFProbe
 from general_bm import letterbox_calc
-from functions import *
 import scipy
 import copy
 import time
@@ -665,6 +664,10 @@ class Clip:
         # 170 - dorn 
 
         self.max_speed = 0
+        self.brakout_point = None
+        self.max_jump_height = None
+
+        self.read_brakout_point()
 
         # aktualizuje klatki o obiekty poprzedzajace i generuje dane o prędkości
 
@@ -832,7 +835,30 @@ class Clip:
 
             except:
                 pass
+    
+    def read_brakout_point(self):
+        # parse json 
+        _brakout_points_path = f"{os.getcwd()}\\_analysed\\_brakout_points.json"
+        with open(_brakout_points_path, "r") as f:
+            data = json.load(f)
+        
+        main_vid_name = self.name[:18]
+        
+        if main_vid_name in (data.keys()):
+            x, y= data[main_vid_name]
+            self.brakout_point = Point(x, y)
 
+    def save_brakout_point(self):
+        main_vid_name = self.name[:18]
+        _brakout_points_path = f"{os.getcwd()}\\_analysed\\_brakout_points.json"
+        with open(_brakout_points_path, "r") as f:
+            data = json.load(f)
+
+        data[main_vid_name] = self.brakout_point.pos_disp
+
+        with open(_brakout_points_path, 'w') as f:
+            json.dump(data, f)
+        
     def generate_charts_data(self):
         # tworzenie obiektu wykresu
         for chart_name, chart_setup in self.avilable_charts.items():
@@ -1036,6 +1062,29 @@ class Clip:
             self.lines[line_name].line_points_to_draw = copy.deepcopy(self.lines[line_name].line_points)
             self.lines[line_name].line_points_to_draw_to_draw = copy.deepcopy(self.lines[line_name].line_points_to_draw)
 
+    def draw_brakout_point(self, image):
+        if self.brakout_point:
+            # setup
+            radius = 20
+            thickness = 2
+            color = (0, 0, 0)
+            cross_size = radius * 0.75
+
+            # współrzędne krzyża
+            cross_x_start = transform_point(self.brakout_point, -cross_size, 0)
+            cross_x_end   = transform_point(self.brakout_point,  cross_size, 0)
+
+            cross_y_start = transform_point(self.brakout_point, 0, -cross_size)
+            cross_y_end   = transform_point(self.brakout_point, 0,  cross_size)
+
+            cross_hor = [cross_x_start, cross_x_end]
+            cross_vert = [cross_y_start, cross_y_end]
+
+            # rysowanie na image
+            cv2.circle(image, self.brakout_point.pos_disp, radius, color=color, thickness=thickness) 
+            draw_line(image, cross_hor, color=color, thickness= thickness)
+            draw_line(image, cross_vert, color=color, thickness= thickness)
+
     def draw_charts_base(self, image, chart):
 
         # rysowanie tła wykresu
@@ -1180,6 +1229,13 @@ class Clip:
             self.min_speed = '-'
             self.delta = '-'
 
+        # ustalenie max wysokości skoku
+        if self.brakout_point != None:
+            self.max_jump_height = self.brakout_point.y - min(point.y for point in self.lines["trace_line"].line_points.values())
+            self.max_jump_height = int(self.max_jump_height / self.speed_factor * 100)
+        else:
+            self.max_jump_height = '-'
+
 
         # main_description = [f'czas - {round(frame.frame_time)} [ms]',
         #                     f'klatka - {frame.frame_count}/{self.frames_amount}',
@@ -1196,14 +1252,14 @@ class Clip:
                                     speed_time,
                                     self.speed_factor),
 
-                            f'V max/min/delta - {self.max_speed} / {self.min_speed} / {self.delta} [km/h]'
+                            f'V max/min/delta : {self.max_speed} / {self.min_speed} / {self.delta} [km/h] | jump height : {self.max_jump_height} [cm]'
                             ]
 
         # rysowanie podkładu
         x, y, w, h = (
             0,
             0,
-            int(900 * self.frame_hight_factor),
+            int(935 * self.frame_hight_factor),
             int(50 * len(main_description) * self.frame_hight_factor),
             )
         sub_img = image[y : y + h, x : x + w]
@@ -1284,6 +1340,11 @@ class Clip:
             
             self.add_time_counter('rysowanie widoku bocznego')
                         
+            # rysowanie punktu wybicia
+            
+            if draws_states.brakout_point_draw_state == True:
+                self.draw_brakout_point(image)
+
             # rysowanie lini trasy/ środek ciężkości itp.
             
             self.draw_lines(image, draws_states)

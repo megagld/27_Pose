@@ -14,10 +14,13 @@ class Manager:
         self.draws_states = DrawsStates()
 
         # obiekt tworzony razem z Combobox w widgecie - nazwa pliku do stworzenia clipu
+        self.date = None
+        self.time = None
+        self.count = None
         self.file_to_load = None
 
         # obiekty tworzone po stworzeniu głównego okna:
-
+ 
         # switch do kontroli checkboxów
         self.checkboxes_changed = None
 
@@ -27,8 +30,10 @@ class Manager:
         # głowny obraz do wyświetlania
         self.canvas = None
 
-        # lista rozwijana
-        self.combo_list = None
+        # listy rozwijana
+        self.combo_list_date = None
+        self.combo_list_time = None
+        self.combo_list_count = None
 
     def frame_cnt_change(self, amount):
 
@@ -84,7 +89,19 @@ class Manager:
     def reload_file_list(self):
 
         self.get_files_list()
-        self.combo_list['values'] = self.files_list
+        # for file_name in self.files_list:
+        #     date = file_name[4:12]
+        #     time =file_name[13:19]
+        #     count = file_name[20:23]
+
+            # self.combo_list_date['values'] = self.files_list
+            # self.combo_list_time['values'] = self.files_list
+            # self.combo_list_count['values'] = self.files_list
+
+        self.combo_list_date['values'] = self.files_list
+
+        self.file_to_load = self.date
+
 
     def get_files_list(self):
 
@@ -123,6 +140,11 @@ class Manager:
         self.frame_to_display = int(float(x))
         self.canvas.update_view()
 
+    def set_brakout_point(self, x, y):
+
+        self.clip.brakout_point = classes.Point(x, y)
+        self.update_view(self.frame_to_display)
+        self.clip.save_brakout_point()
 
 class LeftFrameWidgets:
     def __init__(self):
@@ -154,6 +176,8 @@ class LeftFrameWidgets:
                             '',
                             'trace_line_draw_state',
                             'center_of_gravity_line_draw_state',
+                            '',
+                            'brakout_point_draw_state',
                             '',
                             'side_frame_draw_state',
                             'side_frame_background_draw_state',
@@ -207,6 +231,9 @@ class DrawsStates:
         # linie na głównej klatce
         self.trace_line_draw_state                      = True
         self.center_of_gravity_line_draw_state          = False
+
+
+        self.brakout_point_draw_state                   = True
 
         #################################################
         # boczny widok - wycięta klatka

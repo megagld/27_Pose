@@ -4,8 +4,6 @@ import ttkbootstrap as tb
 from tkcalendar import Calendar
 from PIL import ImageTk
 from manager import *
-import datetime
-import random
 from uuid import uuid4
 
 class CanvasImage(tk.Canvas):
@@ -20,7 +18,11 @@ class CanvasImage(tk.Canvas):
         self.center_x, self.center_y = 0, 0
 
         self.resized_image_width = 0
+        self.resized_image_height = 0
+        
         self.orginal_image_width = 0
+        self.orginal_image_height = 0
+
         self.bind('<Configure>', self.update_values)
 
         manager.checkboxes_changed.trace_add("write", self.update_view)
@@ -28,16 +30,18 @@ class CanvasImage(tk.Canvas):
         self.bind("<Button-1>", self._on_button_1)
         self.bind("<MouseWheel>", self._on_mousewheel)
         self.bind("<Button-3>", self._on_button_3)
+        self.bind("<Button-2>", self._on_button_2)
+
 
     def _on_button_1(self,event):
 
         # względna pozycja x myszy na obnrazie przeskalowanym
         relative_mouse_position = (event.x - (self.width-self.resized_image_width)/2)/self.resized_image_width
         # bezwzględna pozycja myszy na obrazie orginalnym
-        absolut_mouse_position = relative_mouse_position * self.orginal_image_width
+        absolut_mouse_position_x = relative_mouse_position * self.orginal_image_width
 
         for frame_count, frame in manager.clip.frames.items():
-            if frame.detected and frame.trace_point.x > absolut_mouse_position:
+            if frame.detected and frame.trace_point.x > absolut_mouse_position_x:
                 manager.frame_to_display = frame_count
                 break
 
@@ -48,6 +52,26 @@ class CanvasImage(tk.Canvas):
     def _on_button_3(self,event):
 
         manager.frame_cnt_change(1)
+
+        
+    def _on_button_2(self,event):
+
+        # względna pozycja x myszy na obnrazie przeskalowanym
+        relative_mouse_position_x = (event.x - (self.width-self.resized_image_width)/2)/self.resized_image_width
+        relative_mouse_position_y = (event.y - (self.height-self.resized_image_height)/2)/self.resized_image_height
+
+        # bezwzględna pozycja myszy na obrazie orginalnym
+        absolut_mouse_position_x = relative_mouse_position_x * self.orginal_image_width
+        absolut_mouse_position_y = relative_mouse_position_y * self.orginal_image_height
+
+        if 0 < absolut_mouse_position_x < self.orginal_image_width and 0 < absolut_mouse_position_y < self.orginal_image_height:
+            manager.swich_id = uuid4()
+            manager.set_brakout_point(absolut_mouse_position_x, 
+                                      absolut_mouse_position_y)
+            
+
+        # manager.frame_to_display = 100
+        manager.scale.set(manager.frame_to_display)
 
     def _on_mousewheel(self, event):
 
@@ -87,7 +111,10 @@ class CanvasImage(tk.Canvas):
         self.image = ImageTk.PhotoImage(scaled_image)
 
         self.resized_image_width = new_width
+        self.resized_image_height = new_height
+
         self.orginal_image_width = image_width
+        self.orginal_image_height = image_height
 
     def paste_image(self) -> None:
         self.image_id = self.create_image(
@@ -121,55 +148,91 @@ class Frame_right_top(tk.Frame):
     def __init__(self, master: tk.Tk, **kwargs):
         super().__init__(master, **kwargs)
 
-        ttk.Button(self, text='reload classes', comman=manager.reload_classes
-                   ).grid(row=0, column=0, padx=5, pady=5,  sticky='EWNS')
+        manager.date = tk.StringVar()
+        manager.time = tk.StringVar()
+        manager.count = tk.StringVar()
+
+        manager.date.set("Select date")
+        manager.time.set("Select time")
+        manager.count.set("Select file number")
+
+        #################################
+        manager.combo_list_date = ttk.Combobox(self,
+                                        width=25,
+                                        textvariable=manager.date,
+                                        postcommand=manager.reload_file_list)
+        manager.combo_list_date.grid(row=0,column=0, padx=5,pady=5)
+
+        manager.combo_list_time = ttk.Combobox(self,
+                                        width=25,
+                                        textvariable=manager.time,
+                                        postcommand=manager.reload_file_list)
+        manager.combo_list_time.grid(row=1,column=0, padx=5,pady=5)
+
+        manager.combo_list_count = ttk.Combobox(self,
+                                        width=25,
+                                        textvariable=manager.count,
+                                        postcommand=manager.reload_file_list)
+        manager.combo_list_count.grid(row=2,column=0, padx=5,pady=5)
+        
+
         ttk.Button(self, text='load file', comman=manager.load_file
-                   ).grid(row=2, column=2)
-
+                   ).grid(row=2, column=1, padx=5, pady=5,  sticky='EWNS')
+        
         ttk.Separator(self, orient='vertical'
-                    ).grid(column=3, row=0, rowspan=3, sticky='ns')
-        ttk.Button(self, text='frame count -', command=lambda *args: manager.frame_cnt_change(-1)
-                   ).grid(row=1, column=5, padx=5, pady=5, sticky='EWNS')
-        ttk.Button(self, text='frame count +', command=lambda *args: manager.frame_cnt_change(+1)
-                   ).grid(row=1, column=6, padx=5, pady=5, sticky='EWNS')
-
-        ttk.Separator(self, orient='vertical'
-                    ).grid(column=7, row=0, rowspan=3, sticky='ns')
-        ttk.Button(self, text='bike rotation +1', command=lambda *args: manager.bike_rotation_change(1)
-                   ).grid(row=0, column=8, padx=5, pady=5, sticky='EWNS')
-        ttk.Button(self, text='bike rotation +5', command=lambda *args: manager.bike_rotation_change(5)
-                   ).grid(row=1, column=8, padx=5, pady=5, sticky='EWNS')
-        ttk.Button(self, text='bike rotation +10', command=lambda *args: manager.bike_rotation_change(10)
-                   ).grid(row=2, column=8, padx=5, pady=5, sticky='EWNS')
-
-        ttk.Button(self, text='bike rotation -1', command=lambda *args: manager.bike_rotation_change(-1)
-                   ).grid(row=0, column=10, padx=5, pady=5, sticky='EWNS')
-        ttk.Button(self, text='bike rotation -5', command=lambda *args: manager.bike_rotation_change(-5)
-                   ).grid(row=1, column=10, padx=5, pady=5, sticky='EWNS')
-        ttk.Button(self, text='bike rotation -10', command=lambda *args: manager.bike_rotation_change(-10)
-                   ).grid(row=2, column=10, padx=5, pady=5, sticky='EWNS')
-
-        ttk.Button(self, text='set ang', comman=manager.set_ang
-                   ).grid( row=1, column=9, padx=5, pady=5, sticky='EWNS')
-        ttk.Separator(self, orient='vertical'
-                    ).grid(column=11, row=0, rowspan=3, sticky='ns')
-
-        ttk.Button(self, text='make clip', comman=manager.make_clip
-                   ).grid(row=0, column=2, padx=5, pady=5, sticky='EWNS')
-        ttk.Button(self, text='save frame as jpg', comman=manager.save_frame
-                   ).grid(row=1, column=2, padx=5, pady=5, sticky='EWNS')
+                    ).grid(column=2, row=0, rowspan=3, sticky='ns')
+        #################################
+        
+        ttk.Button(self, text='reload classes', comman=manager.reload_classes
+                   ).grid(row=0, column=3, padx=5, pady=5,  sticky='EWNS')
 
         ttk.Button(self, text='count drawing times', comman=manager.count_drawing_times
-                   ).grid(row=1, column=0, padx=5, pady=5, sticky='EWNS')
+                   ).grid(row=1, column=3, padx=5, pady=5, sticky='EWNS')
+        
+        ttk.Separator(self, orient='vertical'
+                    ).grid(column=4, row=0, rowspan=3, sticky='ns')
+        #################################
 
-        manager.file_to_load = tk.StringVar()
-        manager.file_to_load.set("Select From List")
+        ttk.Button(self, text='make clip', comman=manager.make_clip
+                   ).grid(row=0, column=5, padx=5, pady=5, sticky='EWNS')
+        ttk.Button(self, text='save frame as jpg', comman=manager.save_frame
+                   ).grid(row=1, column=5, padx=5, pady=5, sticky='EWNS')
+        
+        ttk.Separator(self, orient='vertical'
+                     ).grid(column=6, row=0, rowspan=3, sticky='ns')
+        #################################
+        
+        ttk.Button(self, text='frame count -', command=lambda *args: manager.frame_cnt_change(-1)
+                   ).grid(row=1, column=7, padx=5, pady=5, sticky='EWNS')
+        ttk.Button(self, text='frame count +', command=lambda *args: manager.frame_cnt_change(+1)
+                   ).grid(row=1, column=8, padx=5, pady=5, sticky='EWNS')
 
-        manager.combo_list = ttk.Combobox(self,
-                                       width=40,
-                                       textvariable=manager.file_to_load,
-                                       postcommand=manager.reload_file_list)
-        manager.combo_list.grid(row=2, column=0, padx=5, pady=5, columnspan=2)
+        ttk.Separator(self, orient='vertical'
+                    ).grid(column=9, row=0, rowspan=3, sticky='ns')
+        #################################
+        
+        ttk.Button(self, text='bike rotation +1', command=lambda *args: manager.bike_rotation_change(1)
+                   ).grid(row=0, column=10, padx=5, pady=5, sticky='EWNS')
+        ttk.Button(self, text='bike rotation +5', command=lambda *args: manager.bike_rotation_change(5)
+                   ).grid(row=1, column=10, padx=5, pady=5, sticky='EWNS')
+        ttk.Button(self, text='bike rotation +10', command=lambda *args: manager.bike_rotation_change(10)
+                   ).grid(row=2, column=10, padx=5, pady=5, sticky='EWNS')
+        ttk.Button(self, text='set ang', comman=manager.set_ang
+                   ).grid( row=1, column=11, padx=5, pady=5, sticky='EWNS')
+        ttk.Button(self, text='bike rotation -1', command=lambda *args: manager.bike_rotation_change(-1)
+                   ).grid(row=0, column=12, padx=5, pady=5, sticky='EWNS')
+        ttk.Button(self, text='bike rotation -5', command=lambda *args: manager.bike_rotation_change(-5)
+                   ).grid(row=1, column=12, padx=5, pady=5, sticky='EWNS')
+        ttk.Button(self, text='bike rotation -10', command=lambda *args: manager.bike_rotation_change(-10)
+                   ).grid(row=2, column=12, padx=5, pady=5, sticky='EWNS')
+
+        ttk.Separator(self, orient='vertical'
+                    ).grid(column=13, row=0, rowspan=3, sticky='ns')
+        #################################
+        
+
+
+
 
         # do skończenia!!!
 
