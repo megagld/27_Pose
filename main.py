@@ -160,19 +160,19 @@ class Frame_right_top(tk.Frame):
         manager.combo_list_date = ttk.Combobox(self,
                                         width=25,
                                         textvariable=manager.date,
-                                        postcommand=manager.reload_file_list)
+                                        postcommand=manager.set_dates_list)
         manager.combo_list_date.grid(row=0,column=0, padx=5,pady=5)
 
         manager.combo_list_time = ttk.Combobox(self,
                                         width=25,
                                         textvariable=manager.time,
-                                        postcommand=manager.reload_file_list)
+                                        postcommand=manager.set_times_list)
         manager.combo_list_time.grid(row=1,column=0, padx=5,pady=5)
 
         manager.combo_list_count = ttk.Combobox(self,
                                         width=25,
                                         textvariable=manager.count,
-                                        postcommand=manager.reload_file_list)
+                                        postcommand=manager.set_counts_list)
         manager.combo_list_count.grid(row=2,column=0, padx=5,pady=5)
         
 

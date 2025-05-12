@@ -626,10 +626,10 @@ class Frame:
 
 
 class Clip:
-    def __init__(self, vid_name):
+    def __init__(self, vid_name, file_path):
 
         self.name           = vid_name
-        self.vid_path       = f"{os.getcwd()}\\_data\\{self.name}"
+        self.vid_path       = file_path
         self.kpts_json_path = f"{os.getcwd()}\\_analysed\\{self.name.replace('.mp4','_kpts.json')}"
 
         self.cap = cv2.VideoCapture(self.vid_path)
@@ -659,9 +659,12 @@ class Clip:
 
         self.speed_factor =139
     
+        # 139 - dobry na pierwszy stolok- zweryfikowane
         # 148  -  wartość przyjmowana do 03.2025  dla pierwszego stolika
         # 180px = 1,22m = 147,5 - pierwszy stolik
         # 170 - dorn 
+
+        self.obstacle_length = 4.7 # [m]
 
         self.max_speed = 0
         self.brakout_point = None
@@ -1062,7 +1065,7 @@ class Clip:
             self.lines[line_name].line_points_to_draw = copy.deepcopy(self.lines[line_name].line_points)
             self.lines[line_name].line_points_to_draw_to_draw = copy.deepcopy(self.lines[line_name].line_points_to_draw)
 
-    def draw_brakout_point(self, image):
+    def draw_brakout_point(self, image, draws_states):
         if self.brakout_point:
             # setup
             radius = 20
@@ -1084,6 +1087,26 @@ class Clip:
             cv2.circle(image, self.brakout_point.pos_disp, radius, color=color, thickness=thickness) 
             draw_line(image, cross_hor, color=color, thickness= thickness)
             draw_line(image, cross_vert, color=color, thickness= thickness)
+
+
+            # rysowanie na image - krzyża do sprawdzanie poprawnośći przyjętego wsp.
+            if draws_states.speed_factor_verification_draw_state:
+                delta = self.speed_factor * self.obstacle_length
+
+                cross_x_start = transform_point(cross_x_start, delta, 0)
+                cross_x_end   = transform_point(cross_x_end,  delta, 0)
+
+                cross_y_start = transform_point(cross_y_start, delta, 0)
+                cross_y_end   = transform_point(cross_y_end, delta, 0)
+
+                cross_hor = [cross_x_start, cross_x_end]
+                cross_vert = [cross_y_start, cross_y_end]
+
+                circle = transform_point(self.brakout_point, delta, 0).pos_disp
+
+                cv2.circle(image, circle, radius, color=color, thickness=thickness) 
+                draw_line(image, cross_hor, color=color, thickness= thickness)
+                draw_line(image, cross_vert, color=color, thickness= thickness)
 
     def draw_charts_base(self, image, chart):
 
@@ -1343,7 +1366,7 @@ class Clip:
             # rysowanie punktu wybicia
             
             if draws_states.brakout_point_draw_state == True:
-                self.draw_brakout_point(image)
+                self.draw_brakout_point(image, draws_states)
 
             # rysowanie lini trasy/ środek ciężkości itp.
             

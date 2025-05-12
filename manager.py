@@ -2,6 +2,7 @@ import importlib
 import classes
 import os
 from uuid import uuid4
+import file_manager
 
 class Manager:
     def __init__(self):
@@ -30,7 +31,12 @@ class Manager:
         # głowny obraz do wyświetlania
         self.canvas = None
 
+        # manager plików
+        self.avilable_files = file_manager.VideoFiles()
+        pass
         # listy rozwijana
+        self.avilable_files.get_dates()
+        self.files = self.avilable_files.dropdown_list_dates
         self.combo_list_date = None
         self.combo_list_time = None
         self.combo_list_count = None
@@ -52,15 +58,25 @@ class Manager:
         self.clip.draw_times_table_in_terminal()
 
     def load_file(self):
+        print(self.time.get())
 
-        self.filename = self.file_to_load.get()
+        if self.time.get() in ("Select file number",'-'):
+            return  
 
-        if self.filename !="Select From List":
+        if self.date.get() == 'unclassified':            
+            video_file = self.avilable_files.dropdown_lists_data['unclassified'][self.time.get()]
         
-            self.clip=classes.Clip(f'{self.filename}.mp4')
+        else:
+            video_file = self.avilable_files.handy_files_dict[self.count.get()]
 
-            self.calc_scale_range()
-            self.scale.set(self.clip.scale_range_min)
+        self.filename = video_file.name
+
+        self.load_path = video_file.file_path
+        
+        self.clip=classes.Clip(self.filename, self.load_path)
+
+        self.calc_scale_range()
+        self.scale.set(self.clip.scale_range_min)
 
     def calc_scale_range(self):
 
@@ -86,49 +102,31 @@ class Manager:
     def save_frame(self):
         self.clip.save_frame(self.frame_to_display)
 
-    def reload_file_list(self):
+    def set_dates_list(self):
 
-        self.get_files_list()
-        # for file_name in self.files_list:
-        #     date = file_name[4:12]
-        #     time =file_name[13:19]
-        #     count = file_name[20:23]
+        self.combo_list_date['values'] = self.avilable_files.dropdown_list_dates
 
-            # self.combo_list_date['values'] = self.files_list
-            # self.combo_list_time['values'] = self.files_list
-            # self.combo_list_count['values'] = self.files_list
+        self.combo_list_count['values'] = []
 
-        self.combo_list_date['values'] = self.files_list
+        self.time.set("Select time")
+        self.count.set("Select file number")
 
-        self.file_to_load = self.date
+    def set_times_list(self):
 
+        try:
+            self.avilable_files.get_times(self.date.get())
+            self.combo_list_time['values'] = self.avilable_files.dropdown_list_times
+            self.count.set("Select file number")
+        except:
+            print('błąd przy pobieraniu czasów')
 
-    def get_files_list(self):
+    def set_counts_list(self):
 
-        self.files_list = []
-
-        input_dir = os.getcwd()
-        input_data_dir = '{}\\{}'.format(input_dir, '_data')
-        input_analized_dir = '{}\\{}'.format(input_dir, '_analysed')
-
-        data_files = []
-        analized_files = []
-
-        # pobiera pliki z katalogu _data
-        for i in next(os.walk(input_data_dir), (None, None, []))[2]:
-            if i.endswith('.mp4'):
-                data_files.append(i[:-4])
-
-        # pobiera pliki z katalogu _analized
-        for i in next(os.walk(input_analized_dir), (None, None, []))[2]:
-            if i.endswith('.json'):
-                analized_files.append(i[:-10])
-
-        for data_file in data_files:
-            if data_file in analized_files:
-                self.files_list.append(data_file)
-
-        print(f'Pliki z gotową analizą: {len(self.files_list)}')
+        try:
+            self.avilable_files.get_counts(self.date.get(), self.time.get())
+            self.combo_list_count['values'] = self.avilable_files.dropdown_list_counts
+        except:
+            print('błąd przy pobieraniu liczników')
 
     def reload_classes(self):
 
@@ -178,6 +176,7 @@ class LeftFrameWidgets:
                             'center_of_gravity_line_draw_state',
                             '',
                             'brakout_point_draw_state',
+                            'speed_factor_verification_draw_state',
                             '',
                             'side_frame_draw_state',
                             'side_frame_background_draw_state',
@@ -221,6 +220,7 @@ class DrawsStates:
 
         # tło wykresów
         self.charts_background_draw_state               = True
+        self.speed_factor_verification_draw_state       = False
 
         # opisy wykresów
         self.charts_descriptions_draw_state             = True
@@ -231,7 +231,6 @@ class DrawsStates:
         # linie na głównej klatce
         self.trace_line_draw_state                      = True
         self.center_of_gravity_line_draw_state          = False
-
 
         self.brakout_point_draw_state                   = True
 
