@@ -634,6 +634,8 @@ class Clip:
 
         self.cap = cv2.VideoCapture(self.vid_path)
 
+        self.compare_clip   = False
+
         self.draws_times = []
 
         # dane do korekty pozycji x y punktów - ze wzgledu na zmianę formatu video do rozpoznawania "letterbox"
@@ -660,17 +662,19 @@ class Clip:
         self.speed_factor =139
     
         # 139 - dobry na pierwszy stolok- zweryfikowane
+        # 170 - dorn 
         # 148  -  wartość przyjmowana do 03.2025  dla pierwszego stolika
         # 180px = 1,22m = 147,5 - pierwszy stolik
-        # 170 - dorn 
 
         self.obstacle_length = 4.7 # [m]
 
         self.max_speed = 0
         self.brakout_point = None
         self.max_jump_height = None
+        self.brakout_point_frame = None
 
         self.read_brakout_point()
+        self.calk_brakout_point_frame()
 
         # aktualizuje klatki o obiekty poprzedzajace i generuje dane o prędkości
 
@@ -851,6 +855,14 @@ class Clip:
             x, y= data[main_vid_name]
             self.brakout_point = Point(x, y)
 
+    def calk_brakout_point_frame(self):
+        if not self.brakout_point:return
+
+        for frame in self.frames.values():
+            if frame.trace_point and frame.trace_point.x>self.brakout_point.x:
+                self.brakout_point_frame = frame.frame_count
+                break
+
     def save_brakout_point(self):
         main_vid_name = self.name[:18]
         _brakout_points_path = f"{os.getcwd()}\\_analysed\\_brakout_points.json"
@@ -908,6 +920,58 @@ class Clip:
             
             self.charts[chart_name].chart_points_to_draw = copy.deepcopy(self.charts[chart_name].chart_points)
             self.charts[chart_name].chart_points_smoothed_to_draw = copy.deepcopy(self.charts[chart_name].chart_points_smoothed)
+
+    def draw_clip_to_compare(self, image, frame_number, compare_clip):
+        if compare_clip == None: return
+
+        try:
+            frame_number = frame_number - self.brakout_point_frame + compare_clip.brakout_point_frame
+            compare_image = copy.deepcopy(compare_clip.frames[frame_number].image)
+        
+            b_channel, g_channel, r_channel = cv2.split(compare_image)
+            alpha_channel = np.ones(b_channel.shape, dtype=b_channel.dtype) * 100
+            compare_image = cv2.merge((b_channel, g_channel, r_channel, alpha_channel))
+
+            self.add_transparent_image(image, compare_image)
+        except:
+            pass
+
+    def add_transparent_image(self, background, foreground, x_offset=None, y_offset=None):
+        bg_h, bg_w, bg_channels = background.shape
+        fg_h, fg_w, fg_channels = foreground.shape
+
+        assert bg_channels == 3, f'background image should have exactly 3 channels (RGB). found:{bg_channels}'
+        assert fg_channels == 4, f'foreground image should have exactly 4 channels (RGBA). found:{fg_channels}'
+
+        # center by default
+        if x_offset is None: x_offset = (bg_w - fg_w) // 2
+        if y_offset is None: y_offset = (bg_h - fg_h) // 2
+
+        w = min(fg_w, bg_w, fg_w + x_offset, bg_w - x_offset)
+        h = min(fg_h, bg_h, fg_h + y_offset, bg_h - y_offset)
+
+        if w < 1 or h < 1: return
+
+        # clip foreground and background images to the overlapping regions
+        bg_x = max(0, x_offset)
+        bg_y = max(0, y_offset)
+        fg_x = max(0, x_offset * -1)
+        fg_y = max(0, y_offset * -1)
+        foreground = foreground[fg_y:fg_y + h, fg_x:fg_x + w]
+        background_subsection = background[bg_y:bg_y + h, bg_x:bg_x + w]
+
+        # separate alpha and color channels from the foreground image
+        foreground_colors = foreground[:, :, :3]
+        alpha_channel = foreground[:, :, 3] / 255  # 0-255 => 0.0-1.0
+
+        # construct an alpha_mask that matches the image shape
+        alpha_mask = alpha_channel[:, :, np.newaxis]
+
+        # combine the background with the overlay image weighted by alpha
+        composite = background_subsection * (1 - alpha_mask) + foreground_colors * alpha_mask
+
+        # overwrite the section of the background image that has been updated
+        background[bg_y:bg_y + h, bg_x:bg_x + w] = composite    
 
     def draw_charts(self, image, draws_states, frame_number):
 
@@ -1330,7 +1394,7 @@ class Clip:
 
         self.draws_times.pop(-1)
 
-    def display_frame(self, frame_number, draws_states, swich_id=False):
+    def display_frame(self, frame_number, draws_states, compare_clip = None, swich_id=False):
 
         # jeżeli nie było zmiany swich_id to obraz zostaje pobrany z obiektu Frame,
         # jeżeli była zmiana - obraz jest tworzony, a potem zapisany do obiektu Frame
@@ -1338,7 +1402,6 @@ class Clip:
         self.draws_times = []
 
         if  swich_id == self.frames[frame_number].swich_id:
-
 
             self.add_time_counter('start - to samo id')
 
@@ -1355,7 +1418,12 @@ class Clip:
             image = copy.deepcopy(self.frames[frame_number].image)
 
             self.add_time_counter('kopia image')
-            
+
+            # rysowanie klipu do porównania
+            if draws_states.compare_clip_draw_state:
+
+                self.draw_clip_to_compare(image, frame_number, compare_clip)
+
             # rysowenie widoku bocznego
 
             if draws_states.side_frame_draw_state:
@@ -1417,7 +1485,7 @@ class Clip:
 
             self.add_time_counter('obróbka ostatecznego obrazu')
 
-    def make_video_clip(self, draws_states, swich_id):
+    def make_video_clip(self, draws_states, compare_clip, swich_id):
 
         output_folder = "_clips"
 
@@ -1431,7 +1499,7 @@ class Clip:
 
         for frame_number in range(1, self.frames_amount):
 
-            self.display_frame(frame_number, draws_states)
+            self.display_frame(frame_number, draws_states, compare_clip=compare_clip)
 
             out.write(self.montage_clip_image)  # writing the video frame
 

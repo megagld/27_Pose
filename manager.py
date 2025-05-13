@@ -9,6 +9,9 @@ class Manager:
 
         self.clip = None
         self.frame_to_display = 0
+        
+        self.compare_clip = None
+        self.compare_clip_frame_to_display = 0
         self.swich_id = uuid4()
 
         # tworzy obiekt ze stanem pozycji do wyświetlenia
@@ -18,6 +21,7 @@ class Manager:
         self.date = None
         self.time = None
         self.count = None
+        self.compare = None
         self.file_to_load = None
 
         # obiekty tworzone po stworzeniu głównego okna:
@@ -40,6 +44,7 @@ class Manager:
         self.combo_list_date = None
         self.combo_list_time = None
         self.combo_list_count = None
+        self.combo_list_compare_count = None
 
     def frame_cnt_change(self, amount):
 
@@ -58,7 +63,6 @@ class Manager:
         self.clip.draw_times_table_in_terminal()
 
     def load_file(self):
-        print(self.time.get())
 
         if self.time.get() in ("Select file number",'-'):
             return  
@@ -77,6 +81,21 @@ class Manager:
 
         self.calc_scale_range()
         self.scale.set(self.clip.scale_range_min)
+
+        if self.compare.get() != "Select file to compare number":  
+            compare_video_file = self.avilable_files.handy_files_dict[self.compare.get()]
+
+            print(compare_video_file.name)
+
+            self.compare_filename = compare_video_file.name
+
+            self.compare_load_path = compare_video_file.file_path
+            
+            self.compare_clip=classes.Clip(self.compare_filename, self.compare_load_path)
+            
+            self.compare_clip.compare_clip = True
+            
+            print(self.compare_clip.name)
 
     def calc_scale_range(self):
 
@@ -97,7 +116,7 @@ class Manager:
                                           self.clip.frames[self.frame_to_display].bike_rotation))
 
     def make_clip(self):
-        self.clip.make_video_clip(self.draws_states, self.swich_id)
+        self.clip.make_video_clip(self.draws_states, self.compare_clip, self.swich_id)
 
     def save_frame(self):
         self.clip.save_frame(self.frame_to_display)
@@ -110,6 +129,7 @@ class Manager:
 
         self.time.set("Select time")
         self.count.set("Select file number")
+        self.compare.set("Select file to compare number")
 
     def set_times_list(self):
 
@@ -127,6 +147,14 @@ class Manager:
             self.combo_list_count['values'] = self.avilable_files.dropdown_list_counts
         except:
             print('błąd przy pobieraniu liczników')
+
+    def set_compare_counts_list(self):
+
+        try:
+            self.avilable_files.get_counts(self.date.get(), self.time.get())
+            self.combo_list_compare_count['values'] = self.avilable_files.dropdown_list_counts
+        except:
+            print('błąd przy pobieraniu liczników pliku do porównania')
 
     def reload_classes(self):
 
@@ -186,9 +214,10 @@ class LeftFrameWidgets:
                             'side_skeleton_left_draw_state',
                             '',
                             'side_wheel_base_line_draw_state',
-                            'side_head_leading_line_draw_state'
+                            'side_head_leading_line_draw_state',
+                            '',
+                            'compare_clip_draw_state'
                             ]
-
 
 class DrawsStates:
     # ustala co ma być wyświetlane
@@ -249,3 +278,7 @@ class DrawsStates:
 
         # pionowa linia wiodąca - głowa
         self.side_head_leading_line_draw_state          = True
+
+        # klip do porównania
+
+        self.compare_clip_draw_state                    = False

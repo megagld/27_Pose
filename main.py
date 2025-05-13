@@ -139,6 +139,7 @@ class CanvasImage(tk.Canvas):
 
         manager.clip.display_frame(manager.frame_to_display,
                                    manager.draws_states,
+                                   manager.compare_clip,
                                    manager.swich_id)
 
         self.open_image()
@@ -151,10 +152,13 @@ class Frame_right_top(tk.Frame):
         manager.date = tk.StringVar()
         manager.time = tk.StringVar()
         manager.count = tk.StringVar()
+        manager.compare = tk.StringVar()
+
 
         manager.date.set("Select date")
         manager.time.set("Select time")
         manager.count.set("Select file number")
+        manager.compare.set("Select file to compare number")
 
         #################################
         manager.combo_list_date = ttk.Combobox(self,
@@ -174,6 +178,12 @@ class Frame_right_top(tk.Frame):
                                         textvariable=manager.count,
                                         postcommand=manager.set_counts_list)
         manager.combo_list_count.grid(row=2,column=0, padx=5,pady=5)
+
+        manager.combo_list_compare_count = ttk.Combobox(self,
+                                        width=25,
+                                        textvariable=manager.compare,
+                                        postcommand=manager.set_compare_counts_list)
+        manager.combo_list_compare_count.grid(row=1,column=1, padx=5,pady=5)
         
 
         ttk.Button(self, text='load file', comman=manager.load_file
