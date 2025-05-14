@@ -112,7 +112,6 @@ class Frame:
         self.skeleton_points    = {}
 
         self.previous_frame     = None
-        self.speed_factor       = None
 
         self.right_knee_ang     = None
         self.right_hip_ang      = None
@@ -128,7 +127,7 @@ class Frame:
         self.stack_reach_len    = None
         self.stack_reach_ang    = None
         self.bike_rotation      = None
-        self.speed              = 30
+        self.speed              = 30 # w pikselach/h
 
         self.side_view_size     = None
         self.size_factor        = None
@@ -201,13 +200,11 @@ class Frame:
 
         self.speed_dist_px = get_dist(self.trace_point, self.previous_frame.trace_point)
 
-        self.speed_dist_m = self.speed_dist_px / self.speed_factor
-
         # czas
         self.speed_time = self.frame_time - self.previous_frame.frame_time
 
         # prędkość
-        self.speed = int((self.speed_dist_m/self.speed_time) * 3600)
+        self.speed = int((self.speed_dist_px/self.speed_time) * 3600)
 
     def calc_ang(self):
         # tworzy słownik z danymi do wykresów
@@ -666,11 +663,12 @@ class Clip:
         # 148  -  wartość przyjmowana do 03.2025  dla pierwszego stolika
         # 180px = 1,22m = 147,5 - pierwszy stolik
 
-        self.obstacle_length = 4.7 # [m]
+        self.obstacle_length = 470 # [cm]
 
         self.max_speed = 0
         self.brakout_point = None
         self.max_jump_height = None
+        self.max_jump_height_point = None
         self.brakout_point_frame = None
 
         self.read_brakout_point()
@@ -774,6 +772,7 @@ class Clip:
         }
         self.lines = {}
         self.generate_lines_data()
+        self.calc_max_jump_height()
 
         # ustala zakres dla widgetu Scale
 
@@ -886,9 +885,10 @@ class Clip:
                 range_max=chart_setup["range_max"],
                 reverse=chart_setup["reverse"],
                 base_scale=chart_setup["base_scale"],
-                smoothed=chart_setup["smoothed"]
+                smoothed=chart_setup["smoothed"],
                 )
-
+            if chart_name == 'speed_chart':
+                self.charts['speed_chart'].speed_factor= self.speed_factor
             # dodanie do wykresu punkty z kolejnych klatek:
             tmp_chart_points_dict   =   {}
 
@@ -908,9 +908,6 @@ class Clip:
 
             self.charts[chart_name].chart_points = tmp_chart_points_dict
         
-
-
-
             # generowanie danych wykresu
 
             if self.charts[chart_name].smoothed == True:
@@ -1152,25 +1149,77 @@ class Clip:
             draw_line(image, cross_hor, color=color, thickness= thickness)
             draw_line(image, cross_vert, color=color, thickness= thickness)
 
+    def draw_speed_factor_verification(self, image):
+        # rysowanie na image sprawdzanie poprawnośći przyjętego wsp. piksele-centymetry
+        # setup
+        thickness = 2
+        color = (56, 231, 255)
+        font = cv2.FONT_HERSHEY_SIMPLEX
+        fontScale = 0.8 * self.frame_hight_factor
+        text_color = (56, 231, 255)
 
-            # rysowanie na image - krzyża do sprawdzanie poprawnośći przyjętego wsp.
-            if draws_states.speed_factor_verification_draw_state:
-                delta = self.speed_factor * self.obstacle_length
+        delta = self.speed_factor * self.obstacle_length / 100
+        start_point = self.brakout_point.pos_disp
+        end_point = transform_point(self.brakout_point, delta, 0).pos_disp
 
-                cross_x_start = transform_point(cross_x_start, delta, 0)
-                cross_x_end   = transform_point(cross_x_end,  delta, 0)
 
-                cross_y_start = transform_point(cross_y_start, delta, 0)
-                cross_y_end   = transform_point(cross_y_end, delta, 0)
+        cv2.arrowedLine(image, start_point, end_point, color=color, thickness=thickness, tipLength = .025) 
+        cv2.arrowedLine(image, end_point, start_point, color=color, thickness=thickness, tipLength = .025) 
+        text = str(int(self.obstacle_length)) + ' cm'
+        description_loc = (int(self.brakout_point.x_disp+delta/2-50),
+                           self.brakout_point.y_disp + 25)
+        cv2.putText(
+            image,
+            text,
+            description_loc,
+            font,
+            fontScale,
+            text_color,
+            thickness,
+        )
+        # rysowanie wymiarów max skoku
+        start_point = self.max_jump_height_point.pos_disp
+        end_point = transform_point(self.max_jump_height_point, 0, self.max_jump_height_px)
+        end_point = end_point.pos_disp
 
-                cross_hor = [cross_x_start, cross_x_end]
-                cross_vert = [cross_y_start, cross_y_end]
 
-                circle = transform_point(self.brakout_point, delta, 0).pos_disp
+        cv2.arrowedLine(image, start_point, end_point, color=color, thickness=thickness, tipLength = .1) 
+        cv2.arrowedLine(image, end_point, start_point, color=color, thickness=thickness, tipLength = .1) 
+        
+        text = str(self.max_jump_height) + ' cm'
+        description_loc = (self.max_jump_height_point.x_disp + 10,
+                           int(self.max_jump_height_point.y + self.max_jump_height_px/2)+20)
+        cv2.putText(
+            image,
+            text,
+            description_loc,
+            font,
+            fontScale,
+            text_color,
+            thickness,
+        )
 
-                cv2.circle(image, circle, radius, color=color, thickness=thickness) 
-                draw_line(image, cross_hor, color=color, thickness= thickness)
-                draw_line(image, cross_vert, color=color, thickness= thickness)
+    def calc_max_jump_height(self):
+        # ustalenie max wysokości skoku
+        if self.brakout_point != None:
+            self.max_jump_height_point = [point for point in self.lines["trace_line"].line_points.values() if point.y == min(point.y for point in self.lines["trace_line"].line_points.values())][0]
+
+            self.max_jump_height_px = self.brakout_point.y - self.max_jump_height_point.y
+            self.max_jump_height = int(self.max_jump_height_px / self.speed_factor * 100)
+        else:
+            self.max_jump_height = '-'
+
+    def calc_speeds(self):
+        
+        try:
+            self.max_speed = round(self.charts['speed_chart'].max_val)
+            self.min_speed = round(self.charts['speed_chart'].min_val)
+            self.delta = self.max_speed - self.min_speed
+
+        except:
+            self.max_speed = '-'
+            self.min_speed = '-'
+            self.delta = '-'
 
     def draw_charts_base(self, image, chart):
 
@@ -1245,11 +1294,18 @@ class Clip:
                 
                 for point in chart.chart_points_smoothed:
                     if int(point.x) == int(self.frames[frame_number].trace_point.x):
-                        chart_value_description = str(round(point.y))
+                        chart_value_description = point.y
                         break
 
             else:
-                chart_value_description = str(round(chart.chart_points[frame_number].y))
+                chart_value_description = chart.chart_points[frame_number].y
+
+
+            if chart.speed_factor != None:
+                chart_value_description /= chart.speed_factor
+
+            chart_value_description = str(round(chart_value_description))
+
 
             chart_value_description_loc = (x_pos, y_pos)
 
@@ -1262,6 +1318,7 @@ class Clip:
                 text_color,
                 thickness,
             )
+
         except:
             pass
 
@@ -1300,28 +1357,13 @@ class Clip:
         # ustalenie tekstu głównego opisu do wyświetlenia i jego pozycji
         # - do zmiany tak żeby się wyświetlały polskie znaki
         try:
-            speed_dist = round(frame.speed_dist_m,3)
+            speed_dist = round(frame.speed_dist_px / self.speed_factor,3)
             speed_time = round(frame.speed_time,1)
         except:
             speed_dist = 0
             speed_time = 0
 
-        try:
-            self.max_speed = round(self.charts['speed_chart'].max_val)
-            self.min_speed = round(self.charts['speed_chart'].min_val)
-            self.delta = self.max_speed - self.min_speed
-
-        except:
-            self.max_speed = '-'
-            self.min_speed = '-'
-            self.delta = '-'
-
-        # ustalenie max wysokości skoku
-        if self.brakout_point != None:
-            self.max_jump_height = self.brakout_point.y - min(point.y for point in self.lines["trace_line"].line_points.values())
-            self.max_jump_height = int(self.max_jump_height / self.speed_factor * 100)
-        else:
-            self.max_jump_height = '-'
+        self.calc_speeds()
 
 
         # main_description = [f'czas - {round(frame.frame_time)} [ms]',
@@ -1435,6 +1477,10 @@ class Clip:
             
             if draws_states.brakout_point_draw_state == True:
                 self.draw_brakout_point(image, draws_states)
+
+            # rysowanie weryfikacji wsp. piksele - metry
+            if draws_states.speed_factor_verification_draw_state:
+                self.draw_speed_factor_verification(image)
 
             # rysowanie lini trasy/ środek ciężkości itp.
             
@@ -1553,6 +1599,7 @@ class Chart:
         self.reverse = reverse
         self.base_scale = base_scale #przeskalowanie wartości wykresu przy wyświetlaniu (niezależna od rozdzielczości)
         self.smoothed = smoothed
+        self.speed_factor = None
 
         # dane wykresu
         self.chart_points   =   None    # słownik z key = klatka clipu, value = Point (!)
@@ -1579,6 +1626,10 @@ class Chart:
                 # skalowanie wykresu
                 point.y = source[frame].y * self.scale_factor * self.base_scale
 
+                # jeżeli wprowadzono speed_factor - to do wartość do przeskalowania
+                if self.speed_factor:
+                    point.y /= self.speed_factor
+
                 # redukcja do wartości minimalnej
                 point.y = point.y - self.range_min * self.scale_factor * self.base_scale
                     
@@ -1593,6 +1644,10 @@ class Chart:
             for source_point, target_point in zip(source, target):
                 # skalowanie wykresu
                 target_point.y = source_point.y * self.scale_factor * self.base_scale
+
+                # jeżeli wprowadzono speed_factor - to do wartość do przeskalowania
+                if self.speed_factor:
+                    target_point.y /= self.speed_factor
     
                 # redukcja do wartości minimalnej
                 target_point.y = target_point.y - self.range_min * self.scale_factor * self.base_scale
@@ -1665,6 +1720,10 @@ class Chart:
                 self.min_val = min(point.y for point in self.chart_points.values()[3:-3])
         except:
             pass
+
+        if self.speed_factor:
+            self.max_val /= self.speed_factor
+            self.min_val /= self.speed_factor
 
     def add_time_counter(self, description):
         self.draws_times.append([description,time.time()])

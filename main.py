@@ -1,7 +1,6 @@
 import tkinter as tk
 from tkinter import ttk
 import ttkbootstrap as tb
-from tkcalendar import Calendar
 from PIL import ImageTk
 from manager import *
 from uuid import uuid4
@@ -32,7 +31,6 @@ class CanvasImage(tk.Canvas):
         self.bind("<Button-3>", self._on_button_3)
         self.bind("<Button-2>", self._on_button_2)
 
-
     def _on_button_1(self,event):
 
         # względna pozycja x myszy na obnrazie przeskalowanym
@@ -48,11 +46,9 @@ class CanvasImage(tk.Canvas):
         # manager.frame_to_display = 100
         manager.scale.set(manager.frame_to_display)
 
-
     def _on_button_3(self,event):
 
         manager.frame_cnt_change(1)
-
         
     def _on_button_2(self,event):
 
@@ -153,12 +149,15 @@ class Frame_right_top(tk.Frame):
         manager.time = tk.StringVar()
         manager.count = tk.StringVar()
         manager.compare = tk.StringVar()
-
+        manager.speed_factor = tk.IntVar()
+        manager.obstacle_length = tk.IntVar()
 
         manager.date.set("Select date")
         manager.time.set("Select time")
         manager.count.set("Select file number")
         manager.compare.set("Select file to compare number")
+        manager.speed_factor.set(None)
+        manager.obstacle_length.set(None)
 
         #################################
         manager.combo_list_date = ttk.Combobox(self,
@@ -239,20 +238,25 @@ class Frame_right_top(tk.Frame):
         ttk.Separator(self, orient='vertical'
                     ).grid(column=13, row=0, rowspan=3, sticky='ns')
         #################################
+
+        ttk.Label(self,
+                  text='speed factor :',
+                  ).grid(row=0, column=14, padx=5, pady=5, sticky='ENS')
+        ttk.Label(self,
+            text='obstacle length :',
+            ).grid(row=1, column=14, padx=5, pady=5, sticky='ENS')
+
+        ttk.Entry(self,
+                  textvariable=manager.speed_factor,
+                  ).grid(row=0, column=15, padx=5, pady=5, sticky='EWNS')
+        ttk.Entry(self,
+                  textvariable=manager.obstacle_length,
+                  ).grid(row=1, column=15, padx=5, pady=5, sticky='EWNS')
+        ttk.Separator(self, orient='vertical'
+                    ).grid(column=16, row=0, rowspan=3, sticky='ns')
+        #################################
         
-
-
-
-
-        # do skończenia!!!
-
-        # cal = Calendar()
-        # date = cal.datetime.today() + cal.timedelta(days=2)
-
-        # de = tb.DateEntry(self).grid(row = 2, column = 0, padx = 5, pady = 5)
-
-        # de.calevent_create(date, 'Reminder 2', 'reminder')
-
+        self.bind_all("<Return>", manager.update_values)
 
 class Frame_right_bottom(tk.Frame):
     def __init__(self, master: tk.Tk, **kwargs):
@@ -334,7 +338,6 @@ class Frame_left(tk.Frame):
         
         manager.swich_id = uuid4()
         manager.checkboxes_changed.set(not manager.checkboxes_changed)
-
 
 class Window(tk.Tk):
     def __init__(self, **kwargs):

@@ -37,7 +37,7 @@ class Manager:
 
         # manager plików
         self.avilable_files = file_manager.VideoFiles()
-        pass
+
         # listy rozwijana
         self.avilable_files.get_dates()
         self.files = self.avilable_files.dropdown_list_dates
@@ -45,6 +45,10 @@ class Manager:
         self.combo_list_time = None
         self.combo_list_count = None
         self.combo_list_compare_count = None
+
+        self.speed_factor = None
+        self.obstacle_length = None
+
 
     def frame_cnt_change(self, amount):
 
@@ -78,6 +82,9 @@ class Manager:
         self.load_path = video_file.file_path
         
         self.clip=classes.Clip(self.filename, self.load_path)
+
+        self.speed_factor.set(self.clip.speed_factor)
+        self.obstacle_length.set(self.clip.obstacle_length)
 
         self.calc_scale_range()
         self.scale.set(self.clip.scale_range_min)
@@ -169,8 +176,20 @@ class Manager:
     def set_brakout_point(self, x, y):
 
         self.clip.brakout_point = classes.Point(x, y)
+        self.clip.calc_max_jump_height()
         self.update_view(self.frame_to_display)
         self.clip.save_brakout_point()
+
+    def update_values(self, event):
+
+        self.clip.speed_factor = self.speed_factor.get()
+        self.clip.obstacle_length = self.obstacle_length.get()
+        self.clip.charts['speed_chart'].speed_factor = self.clip.speed_factor
+        self.clip.charts['speed_chart'].calc_min_max()
+        self.clip.calc_max_jump_height()
+        self.swich_id = uuid4()
+        self.scale.set(self.frame_to_display)
+
 
 class LeftFrameWidgets:
     def __init__(self):
