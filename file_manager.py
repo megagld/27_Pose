@@ -17,11 +17,17 @@ class VideoFiles:
         self.analized_files = []
         self.dropdown_lists_data = {}
 
-        self.dropdown_list_dates = []
-        self.dropdown_list_times = []
-        self.dropdown_list_counts = []
+        self.dropdown_list_dates_a = []
+        self.dropdown_list_times_a = []
+        self.dropdown_list_counts_a = []
 
-        self.handy_files_dict = {}
+        self.handy_files_dict_a = {}
+
+        self.dropdown_list_dates_b = []
+        self.dropdown_list_times_b = []
+        self.dropdown_list_counts_b = []
+
+        self.handy_files_dict_b = {}
 
         # parsuj pliki video
         self.get_video_files_list()       
@@ -106,7 +112,9 @@ class VideoFiles:
 
     def get_counts(self, date, time):
         self.dropdown_list_counts = sorted(count for count in self.dropdown_lists_data[date][time] if date)
-        self.handy_files_dict = {count:self.dropdown_lists_data[date][time][count] for count in self.dropdown_list_counts}
+
+    def make_handy_files_dict(self, date, time):
+        return {count:self.dropdown_lists_data[date][time][count] for count in self.dropdown_list_counts}
 
     def get_others(self):
         return sorted(file.name for file in self.dropdown_lists_data if not file.date)

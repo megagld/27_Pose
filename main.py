@@ -38,7 +38,7 @@ class CanvasImage(tk.Canvas):
         # bezwzględna pozycja myszy na obrazie orginalnym
         absolut_mouse_position_x = relative_mouse_position * self.orginal_image_width
 
-        for frame_count, frame in manager.clip.frames.items():
+        for frame_count, frame in manager.clip_a.frames.items():
             if frame.detected and frame.trace_point.x > absolut_mouse_position_x:
                 manager.frame_to_display = frame_count
                 break
@@ -118,12 +118,12 @@ class CanvasImage(tk.Canvas):
 
     def open_image(self) -> None:
 
-        if not manager.clip.image:
+        if not manager.clip_a.image:
             return
 
         self.delete_previous_image()
 
-        self.source_image = manager.clip.image
+        self.source_image = manager.clip_a.image
 
         self.image = ImageTk.PhotoImage(self.source_image)
 
@@ -133,9 +133,9 @@ class CanvasImage(tk.Canvas):
     def update_view(self, *_) -> None:
         # aktualizuje klatkę do wyświetlenia
 
-        manager.clip.display_frame(manager.frame_to_display,
+        manager.clip_a.display_frame(manager.frame_to_display,
                                    manager.draws_states,
-                                   manager.compare_clip,
+                                   manager.clip_b,
                                    manager.swich_id)
 
         self.open_image()
@@ -145,48 +145,74 @@ class Frame_right_top(tk.Frame):
     def __init__(self, master: tk.Tk, **kwargs):
         super().__init__(master, **kwargs)
 
-        manager.date = tk.StringVar()
-        manager.time = tk.StringVar()
-        manager.count = tk.StringVar()
-        manager.compare = tk.StringVar()
+        manager.date_a = tk.StringVar()
+        manager.time_a = tk.StringVar()
+        manager.count_a = tk.StringVar()
+        manager.date_b = tk.StringVar()
+        manager.time_b = tk.StringVar()
+        manager.count_b = tk.StringVar()
         manager.speed_factor = tk.IntVar()
         manager.obstacle_length = tk.IntVar()
 
-        manager.date.set("Select date")
-        manager.time.set("Select time")
-        manager.count.set("Select file number")
-        manager.compare.set("Select file to compare number")
+        manager.date_a.set("Select date")
+        manager.time_a.set("Select time")
+        manager.count_a.set("Select file number")
+
+        manager.date_b.set("Select date")
+        manager.time_b.set("Select time")
+        manager.count_b.set("Select file number")
+
+        # manager.compare.set("Select file to compare number")
         manager.speed_factor.set(None)
         manager.obstacle_length.set(None)
 
         #################################
-        manager.combo_list_date = ttk.Combobox(self,
+        manager.combo_list_date_a = ttk.Combobox(self,
                                         width=25,
-                                        textvariable=manager.date,
-                                        postcommand=manager.set_dates_list)
-        manager.combo_list_date.grid(row=0,column=0, padx=5,pady=5)
+                                        textvariable=manager.date_a,
+                                        postcommand=manager.set_dates_list_a)
+        manager.combo_list_date_a.grid(row=0,column=0, padx=5,pady=5)
 
-        manager.combo_list_time = ttk.Combobox(self,
+        manager.combo_list_time_a = ttk.Combobox(self,
                                         width=25,
-                                        textvariable=manager.time,
-                                        postcommand=manager.set_times_list)
-        manager.combo_list_time.grid(row=1,column=0, padx=5,pady=5)
+                                        textvariable=manager.time_a,
+                                        postcommand=manager.set_times_list_a)
+        manager.combo_list_time_a.grid(row=1,column=0, padx=5,pady=5)
 
-        manager.combo_list_count = ttk.Combobox(self,
+        manager.combo_list_count_a = ttk.Combobox(self,
                                         width=25,
-                                        textvariable=manager.count,
-                                        postcommand=manager.set_counts_list)
-        manager.combo_list_count.grid(row=2,column=0, padx=5,pady=5)
+                                        textvariable=manager.count_a,
+                                        postcommand=manager.set_counts_list_a)
+        manager.combo_list_count_a.grid(row=2,column=0, padx=5,pady=5)
 
-        manager.combo_list_compare_count = ttk.Combobox(self,
+        manager.combo_list_date_b = ttk.Combobox(self,
                                         width=25,
-                                        textvariable=manager.compare,
-                                        postcommand=manager.set_compare_counts_list)
-        manager.combo_list_compare_count.grid(row=1,column=1, padx=5,pady=5)
+                                        textvariable=manager.date_b,
+                                        postcommand=manager.set_dates_list_b)
+        manager.combo_list_date_b.grid(row=0,column=1, padx=5,pady=5)
+
+        manager.combo_list_time_b = ttk.Combobox(self,
+                                        width=25,
+                                        textvariable=manager.time_b,
+                                        postcommand=manager.set_times_list_b)
+        manager.combo_list_time_b.grid(row=1,column=1, padx=5,pady=5)
+
+        manager.combo_list_count_b = ttk.Combobox(self,
+                                        width=25,
+                                        textvariable=manager.count_b,
+                                        postcommand=manager.set_counts_list_b)
+        manager.combo_list_count_b.grid(row=2,column=1, padx=5,pady=5)
+
+
+        # manager.combo_list_compare_count = ttk.Combobox(self,
+        #                                 width=25,
+        #                                 textvariable=manager.compare,
+        #                                 postcommand=manager.set_compare_counts_list)
+        # manager.combo_list_compare_count.grid(row=2,column=2, padx=5,pady=5)
         
 
         ttk.Button(self, text='load file', comman=manager.load_file
-                   ).grid(row=2, column=1, padx=5, pady=5,  sticky='EWNS')
+                   ).grid(row=2, column=3, padx=5, pady=5,  sticky='EWNS')
         
         ttk.Separator(self, orient='vertical'
                     ).grid(column=2, row=0, rowspan=3, sticky='ns')
