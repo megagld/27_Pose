@@ -15,7 +15,9 @@ class Manager:
         self.swich_id = uuid4()
 
         # tworzy obiekt ze stanem pozycji do wyświetlenia
-        self.draws_states = DrawsStates()
+        self.draws_states_a = DrawsStates()
+        self.draws_states_b = DrawsStates()
+
 
         # obiekt tworzony razem z Combobox w widgecie - nazwa pliku do stworzenia clipu
         self.date_a = None
@@ -41,7 +43,7 @@ class Manager:
         # manager plików
         self.avilable_files = file_manager.VideoFiles()
 
-        # listy rozwijana
+        # listy rozwijane
         self.avilable_files.get_dates()
         self.files = self.avilable_files.dropdown_list_dates
         self.combo_list_date_a = None
@@ -94,37 +96,24 @@ class Manager:
         self.calc_scale_range()
         self.scale.set(self.clip_a.scale_range_min)
 
-        if self.date_b.get() == 'unclassified':            
-            video_file = self.avilable_files.dropdown_lists_data['unclassified'][self.time_b.get()]
+        try:
 
-        else:
-            video_file = self.handy_files_dict_b[self.count_b.get()]
+            if self.date_b.get() == 'unclassified':            
+                video_file = self.avilable_files.dropdown_lists_data['unclassified'][self.time_b.get()]
 
-        self.video_file_b_filename = video_file.name
+            else:
+                video_file = self.handy_files_dict_b[self.count_b.get()]
 
-        self.video_file_b_load_path = video_file.file_path
+            self.video_file_b_filename = video_file.name
 
-        self.clip_b = classes.Clip(self.video_file_b_filename, self.video_file_b_load_path)
-        
-        self.clip_b.compare_clip = True
+            self.video_file_b_load_path = video_file.file_path
 
-
-
-        # if self.count_b.get() != "Select file number":  
-
-        #     compare_video_file = self.handy_files_dict_b[self.count_b.get()]
-
-        #     print(compare_video_file.name)
-
-        #     self.compare_filename = compare_video_file.name
-
-        #     self.compare_load_path = compare_video_file.file_path
+            self.clip_b = classes.Clip(self.video_file_b_filename, self.video_file_b_load_path)
             
-        #     self.compare_clip=classes.Clip(self.compare_filename, self.compare_load_path)
+            self.clip_b.compare_clip = True
             
-        #     self.compare_clip.compare_clip = True
-            
-        #     print(self.compare_clip.name)
+        except:
+            pass
 
     def calc_scale_range(self):
 
@@ -145,7 +134,7 @@ class Manager:
                                           self.clip_a.frames[self.frame_to_display].bike_rotation))
 
     def make_clip(self):
-        self.clip_a.make_video_clip(self.draws_states, self.compare_clip, self.swich_id)
+        self.clip_a.make_video_clip(self.draws_states_a, self.draws_states_a, self.swich_id)
 
     def save_frame(self):
         self.clip_a.save_frame(self.frame_to_display)
@@ -247,7 +236,7 @@ class LeftFrameWidgets:
         # pozycje do wyświetlenia jako checkboxy
         self.labels_to_display  =   ['',
                             'main_frame_draw_state',
-                            'main_frame_background_draw_state',
+                            'main_frame_raw_view_draw_state',
                             '',
                             'main_frame_description',
                             '',
@@ -289,13 +278,14 @@ class LeftFrameWidgets:
                             'compare_clip_draw_state'
                             ]
 
+
 class DrawsStates:
     # ustala co ma być wyświetlane
     def __init__(self):
 
         #główna klatka
         self.main_frame_draw_state                      = True
-        self.main_frame_background_draw_state           = True
+        self.main_frame_raw_view_draw_state             = False
         self.main_frame_description                     = True
 
         # szkielet

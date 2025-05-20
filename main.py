@@ -123,7 +123,7 @@ class CanvasImage(tk.Canvas):
 
         self.delete_previous_image()
 
-        self.source_image = manager.clip_a.image
+        # self.source_image = manager.clip_a.image
 
         self.image = ImageTk.PhotoImage(self.source_image)
 
@@ -133,10 +133,38 @@ class CanvasImage(tk.Canvas):
     def update_view(self, *_) -> None:
         # aktualizuje klatkę do wyświetlenia
 
-        manager.clip_a.display_frame(manager.frame_to_display,
-                                   manager.draws_states,
-                                   manager.clip_b,
-                                   manager.swich_id)
+        try:
+            x_offset = manager.clip_a.brakout_point.x_disp - manager.clip_b.brakout_point.x_disp
+            y_offset = manager.clip_a.brakout_point.y_disp - manager.clip_b.brakout_point.y_disp
+            frame_number_shift = manager.clip_b.brakout_point_frame - manager.clip_a.brakout_point_frame
+        except:
+            x_offset, y_offset = 0, 0
+
+        if manager.draws_states_a.main_frame_draw_state == True and manager.draws_states_b.main_frame_draw_state == False:
+            manager.clip_a.display_frame(frame_number = manager.frame_to_display,
+                                         draws_states = manager.draws_states_a,
+                                         compare_clip = None,
+                                         swich_id = manager.swich_id)
+            self.source_image = manager.clip_a.image
+            print('a')
+
+        if manager.draws_states_a.main_frame_draw_state == False and manager.draws_states_b.main_frame_draw_state == True:
+            manager.clip_b.display_frame(frame_number = manager.frame_to_display + frame_number_shift,
+                                         draws_states = manager.draws_states_b,
+                                         compare_clip = None,
+                                         swich_id = manager.swich_id,
+                                         x_offset = x_offset,
+                                         y_offset = y_offset)
+            self.source_image = manager.clip_b.image
+            print('b')
+
+        if manager.draws_states_a.main_frame_draw_state == True and manager.draws_states_b.main_frame_draw_state == True:
+            manager.clip_a.display_frame(frame_number = manager.frame_to_display,
+                                         draws_states = manager.draws_states_a,
+                                         compare_clip = manager.clip_b,
+                                         swich_id = manager.swich_id)
+            self.source_image = manager.clip_a.image
+            print('ab')
 
         self.open_image()
 
@@ -154,13 +182,22 @@ class Frame_right_top(tk.Frame):
         manager.speed_factor = tk.IntVar()
         manager.obstacle_length = tk.IntVar()
 
-        manager.date_a.set("Select date")
-        manager.time_a.set("Select time")
-        manager.count_a.set("Select file number")
+        # manager.date_a.set("Select date")
+        # manager.time_a.set("Select time")
+        # manager.count_a.set("Select file number")
 
-        manager.date_b.set("Select date")
-        manager.time_b.set("Select time")
-        manager.count_b.set("Select file number")
+        # manager.date_b.set("Select date")
+        # manager.time_b.set("Select time")
+        # manager.count_b.set("Select file number")
+
+
+        manager.date_a.set("2025-02-09")
+        manager.time_a.set("13:25:12")
+        manager.count_a.set("003")
+
+        manager.date_b.set("2025-03-12")
+        manager.time_b.set("14:38:46")
+        manager.count_b.set("005")
 
         # manager.compare.set("Select file to compare number")
         manager.speed_factor.set(None)
@@ -203,86 +240,81 @@ class Frame_right_top(tk.Frame):
                                         postcommand=manager.set_counts_list_b)
         manager.combo_list_count_b.grid(row=2,column=1, padx=5,pady=5)
 
-
-        # manager.combo_list_compare_count = ttk.Combobox(self,
-        #                                 width=25,
-        #                                 textvariable=manager.compare,
-        #                                 postcommand=manager.set_compare_counts_list)
-        # manager.combo_list_compare_count.grid(row=2,column=2, padx=5,pady=5)
-        
+        #################################
 
         ttk.Button(self, text='load file', comman=manager.load_file
-                   ).grid(row=2, column=3, padx=5, pady=5,  sticky='EWNS')
+                   ).grid(row=2, column=2, padx=5, pady=5,  sticky='EWNS')
         
         ttk.Separator(self, orient='vertical'
-                    ).grid(column=2, row=0, rowspan=3, sticky='ns')
+                    ).grid(column=3, row=0, rowspan=3, sticky='ns')
         #################################
         
         ttk.Button(self, text='reload classes', comman=manager.reload_classes
-                   ).grid(row=0, column=3, padx=5, pady=5,  sticky='EWNS')
+                   ).grid(row=0, column=5, padx=5, pady=5,  sticky='EWNS')
 
         ttk.Button(self, text='count drawing times', comman=manager.count_drawing_times
-                   ).grid(row=1, column=3, padx=5, pady=5, sticky='EWNS')
-        
-        ttk.Separator(self, orient='vertical'
-                    ).grid(column=4, row=0, rowspan=3, sticky='ns')
-        #################################
-
-        ttk.Button(self, text='make clip', comman=manager.make_clip
-                   ).grid(row=0, column=5, padx=5, pady=5, sticky='EWNS')
-        ttk.Button(self, text='save frame as jpg', comman=manager.save_frame
                    ).grid(row=1, column=5, padx=5, pady=5, sticky='EWNS')
         
         ttk.Separator(self, orient='vertical'
-                     ).grid(column=6, row=0, rowspan=3, sticky='ns')
+                    ).grid(column=6, row=0, rowspan=3, sticky='ns')
+        #################################
+
+        ttk.Button(self, text='make clip', comman=manager.make_clip
+                   ).grid(row=0, column=7, padx=5, pady=5, sticky='EWNS')
+        ttk.Button(self, text='save frame as jpg', comman=manager.save_frame
+                   ).grid(row=1, column=7, padx=5, pady=5, sticky='EWNS')
+        
+        ttk.Separator(self, orient='vertical'
+                     ).grid(column=8, row=0, rowspan=3, sticky='ns')
         #################################
         
         ttk.Button(self, text='frame count -', command=lambda *args: manager.frame_cnt_change(-1)
-                   ).grid(row=1, column=7, padx=5, pady=5, sticky='EWNS')
+                   ).grid(row=1, column=9, padx=5, pady=5, sticky='EWNS')
         ttk.Button(self, text='frame count +', command=lambda *args: manager.frame_cnt_change(+1)
-                   ).grid(row=1, column=8, padx=5, pady=5, sticky='EWNS')
+                   ).grid(row=1, column=10, padx=5, pady=5, sticky='EWNS')
 
         ttk.Separator(self, orient='vertical'
-                    ).grid(column=9, row=0, rowspan=3, sticky='ns')
+                    ).grid(column=11, row=0, rowspan=3, sticky='ns')
         #################################
         
         ttk.Button(self, text='bike rotation +1', command=lambda *args: manager.bike_rotation_change(1)
-                   ).grid(row=0, column=10, padx=5, pady=5, sticky='EWNS')
-        ttk.Button(self, text='bike rotation +5', command=lambda *args: manager.bike_rotation_change(5)
-                   ).grid(row=1, column=10, padx=5, pady=5, sticky='EWNS')
-        ttk.Button(self, text='bike rotation +10', command=lambda *args: manager.bike_rotation_change(10)
-                   ).grid(row=2, column=10, padx=5, pady=5, sticky='EWNS')
-        ttk.Button(self, text='set ang', comman=manager.set_ang
-                   ).grid( row=1, column=11, padx=5, pady=5, sticky='EWNS')
-        ttk.Button(self, text='bike rotation -1', command=lambda *args: manager.bike_rotation_change(-1)
                    ).grid(row=0, column=12, padx=5, pady=5, sticky='EWNS')
-        ttk.Button(self, text='bike rotation -5', command=lambda *args: manager.bike_rotation_change(-5)
+        ttk.Button(self, text='bike rotation +5', command=lambda *args: manager.bike_rotation_change(5)
                    ).grid(row=1, column=12, padx=5, pady=5, sticky='EWNS')
-        ttk.Button(self, text='bike rotation -10', command=lambda *args: manager.bike_rotation_change(-10)
+        ttk.Button(self, text='bike rotation +10', command=lambda *args: manager.bike_rotation_change(10)
                    ).grid(row=2, column=12, padx=5, pady=5, sticky='EWNS')
+        ttk.Button(self, text='set ang', comman=manager.set_ang
+                   ).grid( row=1, column=13, padx=5, pady=5, sticky='EWNS')
+        ttk.Button(self, text='bike rotation -1', command=lambda *args: manager.bike_rotation_change(-1)
+                   ).grid(row=0, column=14, padx=5, pady=5, sticky='EWNS')
+        ttk.Button(self, text='bike rotation -5', command=lambda *args: manager.bike_rotation_change(-5)
+                   ).grid(row=1, column=14, padx=5, pady=5, sticky='EWNS')
+        ttk.Button(self, text='bike rotation -10', command=lambda *args: manager.bike_rotation_change(-10)
+                   ).grid(row=2, column=14, padx=5, pady=5, sticky='EWNS')
 
         ttk.Separator(self, orient='vertical'
-                    ).grid(column=13, row=0, rowspan=3, sticky='ns')
+                    ).grid(column=15, row=0, rowspan=3, sticky='ns')
         #################################
 
         ttk.Label(self,
                   text='speed factor :',
-                  ).grid(row=0, column=14, padx=5, pady=5, sticky='ENS')
+                  ).grid(row=0, column=16, padx=5, pady=5, sticky='ENS')
         ttk.Label(self,
             text='obstacle length :',
-            ).grid(row=1, column=14, padx=5, pady=5, sticky='ENS')
+            ).grid(row=1, column=16, padx=5, pady=5, sticky='ENS')
 
         ttk.Entry(self,
                   textvariable=manager.speed_factor,
-                  ).grid(row=0, column=15, padx=5, pady=5, sticky='EWNS')
+                  ).grid(row=0, column=17, padx=5, pady=5, sticky='EWNS')
         ttk.Entry(self,
                   textvariable=manager.obstacle_length,
-                  ).grid(row=1, column=15, padx=5, pady=5, sticky='EWNS')
+                  ).grid(row=1, column=17, padx=5, pady=5, sticky='EWNS')
         ttk.Separator(self, orient='vertical'
-                    ).grid(column=16, row=0, rowspan=3, sticky='ns')
+                    ).grid(column=18, row=0, rowspan=3, sticky='ns')
         #################################
         
         self.bind_all("<Return>", manager.update_values)
+
 
 class Frame_right_bottom(tk.Frame):
     def __init__(self, master: tk.Tk, **kwargs):
@@ -323,27 +355,52 @@ class Frame_left(tk.Frame):
         self.left_frame_widgets = LeftFrameWidgets()
         self.labels = self.left_frame_widgets.labels_to_display
 
-        self.checkboxes_variables = {}
+        self.checkboxes_variables_a = {}
+        self.checkboxes_variables_b = {}
 
         # rysowanie checkboxów z opisami. Checkboxy powstają na podstawie
         # labeli i są zestawiane na podstawie ich tekstu. Key = tekst labela
-
-        for label in self.labels:
+        
+        ttk.Label(self,
+                text='A',
+                anchor="center"
+                ).grid(column=0,
+                        row=0,
+                        padx=(5,0))
+        ttk.Label(self,
+                text='B',
+                ).grid(column=1,
+                        row=0,
+                        padx=(5,0),
+                        sticky = 'NW')
+        
+        for row_count, label in enumerate(self.labels, start=1):
             # dostosowuje nazwę do wyświetlenia - todo: dodać polskie tłumaczenia np.jako słownik
             text_to_display = label.replace(
                 '_draw_state', '').replace('_', ' ').capitalize()
 
             if label != '':
-                self.checkboxes_variables[label] = tk.IntVar()
+                self.checkboxes_variables_a[label] = tk.IntVar()
+                ttk.Checkbutton(self,
+                                text='',
+                                bootstyle="round-toggle",
+                                variable=self.checkboxes_variables_a[label],
+                                command=self.update_draws_states).grid(column=0,
+                                                                       row=row_count,
+                                                                       padx=(5,0))
+                self.checkboxes_variables_b[label] = tk.IntVar()
+
                 ttk.Checkbutton(self,
                                 text=text_to_display,
                                 bootstyle="round-toggle",
-                                variable=self.checkboxes_variables[label],
-                                command=self.update_draws_states).pack(side='top',
-                                                                       anchor='nw',
-                                                                       padx=10)
+                                variable=self.checkboxes_variables_b[label],
+                                command=self.update_draws_states).grid(column=1,
+                                                                       row=row_count,
+                                                                       sticky='W',
+                                                                       padx=(0,5))
             else:
-                ttk.Label(self, text=text_to_display).pack()
+                ttk.Label(self, text=text_to_display).grid(column=0,
+                                                           row=row_count)
 
         # ustalanie ich stanu checkboxów
         self.update_checkboxes_states()
@@ -351,19 +408,27 @@ class Frame_left(tk.Frame):
     def update_checkboxes_states(self):
 
         # zaznacza checkboxy wg stanu z draw_states
-        for checkbox_name, checkbox_variable in self.checkboxes_variables.items():
-            checkbox_variable.set(getattr(manager.draws_states, checkbox_name))
+        for checkbox_name, checkbox_variable in self.checkboxes_variables_a.items():
+            checkbox_variable.set(getattr(manager.draws_states_a, checkbox_name))
+
+        for checkbox_name, checkbox_variable in self.checkboxes_variables_b.items():
+            checkbox_variable.set(getattr(manager.draws_states_b, checkbox_name))
 
     def update_draws_states(self):
         # aktualizuje obiekt draws_states wg stanu checkboksów i przeładowuje wyświetlaną klatkę
-        for checkbox_name, checkbox_variable in self.checkboxes_variables.items():
-            setattr(manager.draws_states, checkbox_name,
+        for checkbox_name, checkbox_variable in self.checkboxes_variables_a.items():
+            setattr(manager.draws_states_a, checkbox_name,
                     checkbox_variable.get())
-
+        
+        for checkbox_name, checkbox_variable in self.checkboxes_variables_b.items():
+            setattr(manager.draws_states_b, checkbox_name,
+                    checkbox_variable.get())
+            
         # zmienia stan zmiennej dającej sygnal że stan chceckboxów sie zmienił
         
         manager.swich_id = uuid4()
         manager.checkboxes_changed.set(not manager.checkboxes_changed)
+
 
 class Window(tk.Tk):
     def __init__(self, **kwargs):

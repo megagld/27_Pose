@@ -22,6 +22,8 @@ def run():
     main_dir = os.getcwd()
     _,_,analysed_files=list(os.walk(analysed_dir))[0]
 
+    files_to_analise = []
+
     for path,_,files in os.walk(data_dir):
         for file in files:
             tmp_file_name = file.replace('.mp4','_kpts.json')
@@ -31,9 +33,17 @@ def run():
                 file_to_analyse="{}\\{}".format(path,file)
                 folder_to_store=analysed_dir
 
-                analyse(file_to_analyse,folder_to_store)
+                # analyse(file_to_analyse,folder_to_store)
+                files_to_analise.append((file_to_analyse,folder_to_store))
             else:
                 pass
+    
+
+    for file_to_analyse,folder_to_store in files_to_analise:
+        print(f'files to analise: {len(files_to_analise)}')
+        analyse(file_to_analyse,folder_to_store)
+
+    
 
 def analyse(file_to_analyse,folder_to_store):
 

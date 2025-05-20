@@ -856,11 +856,14 @@ class Clip:
 
     def calk_brakout_point_frame(self):
         if not self.brakout_point:return
-
+        previous_trace_point_x = 0
         for frame in self.frames.values():
-            if frame.trace_point and frame.trace_point.x>self.brakout_point.x:
-                self.brakout_point_frame = frame.frame_count
-                break
+            if frame.trace_point:
+                if frame.trace_point.x>self.brakout_point.x:
+                    interpolation_factor = (self.brakout_point.x-previous_trace_point_x)/(frame.trace_point.x - previous_trace_point_x)
+                    self.brakout_point_frame = frame.frame_count - (interpolation_factor<0.5)
+                    break
+                previous_trace_point_x = frame.trace_point.x
 
     def save_brakout_point(self):
         main_vid_name = self.name[:18]
@@ -929,11 +932,17 @@ class Clip:
             alpha_channel = np.ones(b_channel.shape, dtype=b_channel.dtype) * 100
             compare_image = cv2.merge((b_channel, g_channel, r_channel, alpha_channel))
 
-            self.add_transparent_image(image, compare_image)
+            x_offset = self.brakout_point.x_disp - compare_clip.brakout_point.x_disp
+            y_offset = self.brakout_point.y_disp - compare_clip.brakout_point.y_disp
+
+            self.add_transparent_image(image, compare_image, x_offset, y_offset)
+
         except:
             pass
 
     def add_transparent_image(self, background, foreground, x_offset=None, y_offset=None):
+
+
         bg_h, bg_w, bg_channels = background.shape
         fg_h, fg_w, fg_channels = foreground.shape
 
@@ -969,6 +978,13 @@ class Clip:
 
         # overwrite the section of the background image that has been updated
         background[bg_y:bg_y + h, bg_x:bg_x + w] = composite    
+
+    def shift_image(self, image,  x_offset = 0, y_offset = 0):
+
+        rows, cols = image.shape[:2]
+        M = np.float32([[1, 0, x_offset], [0, 1, y_offset]])
+        ss = cv2.warpAffine(image, M, (cols, rows))
+        return ss
 
     def draw_charts(self, image, draws_states, frame_number):
 
@@ -1436,7 +1452,7 @@ class Clip:
 
         self.draws_times.pop(-1)
 
-    def display_frame(self, frame_number, draws_states, compare_clip = None, swich_id=False):
+    def display_frame(self, frame_number, draws_states, compare_clip = None, swich_id=False, x_offset = 0, y_offset = 0):
 
         # jeżeli nie było zmiany swich_id to obraz zostaje pobrany z obiektu Frame,
         # jeżeli była zmiana - obraz jest tworzony, a potem zapisany do obiektu Frame
@@ -1466,60 +1482,65 @@ class Clip:
 
                 self.draw_clip_to_compare(image, frame_number, compare_clip)
 
-            # rysowenie widoku bocznego
+            if draws_states.main_frame_raw_view_draw_state == False:
+                # rysowenie widoku bocznego
 
-            if draws_states.side_frame_draw_state:
-                self.frames[frame_number].draw_side_view(image, draws_states, self.frame_hight_factor)
-            
-            self.add_time_counter('rysowanie widoku bocznego')
-                        
-            # rysowanie punktu wybicia
-            
-            if draws_states.brakout_point_draw_state == True:
-                self.draw_brakout_point(image, draws_states)
+                if draws_states.side_frame_draw_state:
+                    self.frames[frame_number].draw_side_view(image, draws_states, self.frame_hight_factor)
+                
+                self.add_time_counter('rysowanie widoku bocznego')
+                            
+                # rysowanie punktu wybicia
+                
+                if draws_states.brakout_point_draw_state == True:
+                    self.draw_brakout_point(image, draws_states)
 
-            # rysowanie weryfikacji wsp. piksele - metry
-            if draws_states.speed_factor_verification_draw_state:
-                self.draw_speed_factor_verification(image)
+                # rysowanie weryfikacji wsp. piksele - metry
+                if draws_states.speed_factor_verification_draw_state:
+                    self.draw_speed_factor_verification(image)
 
-            # rysowanie lini trasy/ środek ciężkości itp.
-            
-            self.draw_lines(image, draws_states)
-            self.add_time_counter('linie trasy')
+                # rysowanie lini trasy/ środek ciężkości itp.
+                
+                self.draw_lines(image, draws_states)
+                self.add_time_counter('linie trasy')
 
-            # rysowanie lini pomocniczej - wiodącej
+                # rysowanie lini pomocniczej - wiodącej
 
-            if draws_states.leading_line_draw_state == True:
-                self.frames[frame_number].draw_leading_line(image)
-            
-            self.add_time_counter('linia pomocnicza')
+                if draws_states.leading_line_draw_state == True:
+                    self.frames[frame_number].draw_leading_line(image)
+                
+                self.add_time_counter('linia pomocnicza')
 
-            # rysowanie szkieletów na głównym widoku
-            if draws_states.main_skeleton_right_draw_state == True:
-                self.frames[frame_number].draw_skeleton_right(image)
+                # rysowanie szkieletów na głównym widoku
+                if draws_states.main_skeleton_right_draw_state == True:
+                    self.frames[frame_number].draw_skeleton_right(image)
 
-            if draws_states.main_skeleton_left_draw_state == True:
-                self.frames[frame_number].draw_skeleton_left(image)
+                if draws_states.main_skeleton_left_draw_state == True:
+                    self.frames[frame_number].draw_skeleton_left(image)
 
-            if draws_states.main_skeleton_draw_state == True:
-                self.frames[frame_number].draw_skeleton(image)
+                if draws_states.main_skeleton_draw_state == True:
+                    self.frames[frame_number].draw_skeleton(image)
 
-            self.add_time_counter('szkielety na glownej')
+                self.add_time_counter('szkielety na glownej')
 
-            # rysowanie wykresów
+                # rysowanie wykresów
 
-            self.draw_charts(image, draws_states, frame_number)
+                self.draw_charts(image, draws_states, frame_number)
 
-            self.add_time_counter('wykresy')
+                self.add_time_counter('wykresy')
 
-            # rysowanie głównego opisu na ramce
+                # rysowanie głównego opisu na ramce
 
-            if draws_states.main_frame_description == True:
-                self.draw_main_frame_description(image, self.frames[frame_number])
-            
-            self.add_time_counter('opis glowny')
+                if draws_states.main_frame_description == True:
+                    self.draw_main_frame_description(image, self.frames[frame_number])
+                
+                self.add_time_counter('opis glowny')
 
             # tworzenie ostatecznego obrazu
+
+            # przesuwanie obrazu jeśli jest zadany offset
+            if x_offset or y_offset:
+                image = self.shift_image(image, x_offset, y_offset)
 
             self.montage_clip_image = image
 
