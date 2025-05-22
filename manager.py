@@ -3,6 +3,8 @@ import classes
 import os
 from uuid import uuid4
 import file_manager
+import cv2
+
 
 class Manager:
     def __init__(self):
@@ -28,6 +30,8 @@ class Manager:
         self.count_b = None
         self.file_a_to_load = None
         self.file_b_to_load = None
+
+        self.rotation_angle = None
 
         # obiekty tworzone po stworzeniu głównego okna:
  
@@ -129,12 +133,18 @@ class Manager:
         self.canvas.update_view()
         self.scale.set(self.frame_to_display)  # po co to? do kontroli
 
+    def img_rotation_change(self, amount):
+        self.swich_id = uuid4()
+        self.clip_b.rotation_angle += amount
+        self.canvas.update_view()
+        self.scale.set(self.frame_to_display)  # po co to? do kontroli
+
     def set_ang(self):
         self.clip_a.bike_ang_cor.append((self.frame_to_display,
                                           self.clip_a.frames[self.frame_to_display].bike_rotation))
 
-    def make_clip(self):
-        self.clip_a.make_video_clip(self.draws_states_a, self.draws_states_a, self.swich_id)
+    # def make_clip(self):
+    #     self.clip_a.make_video_clip(self.draws_states_a, self.draws_states_a, self.swich_id)
 
     def save_frame(self):
         self.clip_a.save_frame(self.frame_to_display)
@@ -229,6 +239,82 @@ class Manager:
         self.clip_a.calc_max_jump_height()
         self.swich_id = uuid4()
         self.scale.set(self.frame_to_display)
+
+    def make_source_image(self):
+
+        try:
+            x_offset = self.clip_a.brakout_point.x_disp - self.clip_b.brakout_point.x_disp
+            y_offset = self.clip_a.brakout_point.y_disp - self.clip_b.brakout_point.y_disp
+            frame_number_shift = self.clip_b.brakout_point_frame - self.clip_a.brakout_point_frame
+        except:
+            x_offset, y_offset = 0, 0
+
+        if self.draws_states_a.main_frame_draw_state == True and self.draws_states_b.main_frame_draw_state == False:
+            self.clip_a.display_frame(frame_number = self.frame_to_display,
+                                         draws_states = self.draws_states_a,
+                                         compare_clip = None,
+                                         swich_id = self.swich_id)
+            self.source_image = self.clip_a.image
+            self.montage_clip_image = self.clip_a.montage_clip_image
+            print('a')
+
+        if self.draws_states_a.main_frame_draw_state == False and self.draws_states_b.main_frame_draw_state == True:
+            self.clip_b.display_frame(frame_number = self.frame_to_display + frame_number_shift,
+                                         draws_states = self.draws_states_b,
+                                         compare_clip = None,
+                                         swich_id = self.swich_id,
+                                         x_offset = x_offset,
+                                         y_offset = y_offset)
+            self.source_image = self.clip_b.image
+            self.montage_clip_image = self.clip_b.montage_clip_image
+
+            print('b')
+
+        if self.draws_states_a.main_frame_draw_state == True and self.draws_states_b.main_frame_draw_state == True:
+            self.clip_a.display_frame(frame_number = self.frame_to_display,
+                                         draws_states = self.draws_states_a,
+                                         compare_clip = self.clip_b,
+                                         swich_id = self.swich_id)
+            self.source_image = self.clip_a.image
+            self.montage_clip_image = self.clip_a.montage_clip_image
+
+            print('ab')
+
+    def make_video_clip(self):
+
+        output_folder = "_clips"
+
+        output_video_clip_file = "{}\\{}".format(
+            output_folder, self.clip_a.name.replace(".mp4", "_analized.mp4")
+        )
+
+        out = cv2.VideoWriter(
+            output_video_clip_file, cv2.VideoWriter_fourcc(*"mp4v"), 30, (1920, 1080)
+        )
+
+        for frame_number in range(self.scale_from-5, self.scale_to+6):
+
+            self.frame_to_display = frame_number
+
+            self.make_source_image()
+
+            out.write(self.montage_clip_image)  # writing the video frame
+
+        import time
+        time.sleep(20)
+
+        file_from = f'{os.getcwd()}\\{output_video_clip_file}'
+        file_to = file_from.replace('.mp4','_60fps.mp4')
+
+        print(file_from)
+        print(file_to)
+        print(f"ffmpeg -y -i {file_from} -vf fps=60 {file_to}")
+
+        os.system(f"ffmpeg -y -i {file_from} -vf fps=60 {file_to}")
+
+        print(f"{self.clip_a.name} gotowe.")   
+        self.frame_to_display = 0
+
 
 
 class LeftFrameWidgets:

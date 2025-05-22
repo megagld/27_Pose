@@ -10,3 +10,12 @@ tmp_done/**
 _clips/**
 __pycache__/**
 utils/__pycache__/**
+_data/2025.02.05/_analysed/.gitignore
+_data/2025.02.05/_analysed/.gitkeep
+_data/2025.02.05/_data/.gitignore
+_data/2025.02.05/_data/.gitkeep
+_data/2025.02.12/.gitignore
+_data/2025.02.12/.gitkeep
+_data/2025.02.12/.@__thumb/.gitkeep
+_data/2025.02.12/_frames/.gitkeep
+_data/2025.02.12/_separated/.gitkeep

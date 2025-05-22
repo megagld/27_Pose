@@ -647,6 +647,8 @@ class Clip:
         self.frame_hight_factor = None
         self.calc_frame_hight_factor()
 
+        self.rotation_angle = 0
+
         # zestawia wszyskie klatki clipu
 
         self.frames = {}
@@ -935,13 +937,24 @@ class Clip:
             x_offset = self.brakout_point.x_disp - compare_clip.brakout_point.x_disp
             y_offset = self.brakout_point.y_disp - compare_clip.brakout_point.y_disp
 
-            self.add_transparent_image(image, compare_image, x_offset, y_offset)
+            base_x, base_y = compare_clip.brakout_point.pos_disp
+
+            compare_image = self.shift_image(compare_image,
+                                      x_offset=x_offset,
+                                      y_offset=y_offset,
+                                      rotation_angle=compare_clip.rotation_angle,
+                                      scale=1,
+                                      base_x=base_x,
+                                      base_y=base_y)
+
+            self.add_transparent_image(image, compare_image)
 
         except:
             pass
 
-    def add_transparent_image(self, background, foreground, x_offset=None, y_offset=None):
+    def add_transparent_image(self, background, foreground, x_offset=0, y_offset=0):
 
+        # usunąć obracanie
 
         bg_h, bg_w, bg_channels = background.shape
         fg_h, fg_w, fg_channels = foreground.shape
@@ -950,8 +963,8 @@ class Clip:
         assert fg_channels == 4, f'foreground image should have exactly 4 channels (RGBA). found:{fg_channels}'
 
         # center by default
-        if x_offset is None: x_offset = (bg_w - fg_w) // 2
-        if y_offset is None: y_offset = (bg_h - fg_h) // 2
+        # if x_offset is None: x_offset = (bg_w - fg_w) // 2
+        # if y_offset is None: y_offset = (bg_h - fg_h) // 2 
 
         w = min(fg_w, bg_w, fg_w + x_offset, bg_w - x_offset)
         h = min(fg_h, bg_h, fg_h + y_offset, bg_h - y_offset)
@@ -963,6 +976,7 @@ class Clip:
         bg_y = max(0, y_offset)
         fg_x = max(0, x_offset * -1)
         fg_y = max(0, y_offset * -1)
+        
         foreground = foreground[fg_y:fg_y + h, fg_x:fg_x + w]
         background_subsection = background[bg_y:bg_y + h, bg_x:bg_x + w]
 
@@ -979,12 +993,27 @@ class Clip:
         # overwrite the section of the background image that has been updated
         background[bg_y:bg_y + h, bg_x:bg_x + w] = composite    
 
-    def shift_image(self, image,  x_offset = 0, y_offset = 0):
+    def shift_image(self, 
+                    image,  
+                    x_offset = 0, 
+                    y_offset = 0, 
+                    rotation_angle = 0, 
+                    scale = 1, 
+                    base_x = 0, 
+                    base_y = 0):
 
+        # przesuń obraz
         rows, cols = image.shape[:2]
         M = np.float32([[1, 0, x_offset], [0, 1, y_offset]])
-        ss = cv2.warpAffine(image, M, (cols, rows))
-        return ss
+        image = cv2.warpAffine(image, M, (cols, rows))
+
+        # obróć obraz i przeskaluj
+        rotation_point = (base_x, base_y)
+        rot_mat = cv2.getRotationMatrix2D(rotation_point, rotation_angle, scale)
+        print(rotation_angle)
+        image = cv2.warpAffine(image, rot_mat, image.shape[1::-1], flags=cv2.INTER_LINEAR)
+
+        return image
 
     def draw_charts(self, image, draws_states, frame_number):
 
@@ -1540,7 +1569,13 @@ class Clip:
 
             # przesuwanie obrazu jeśli jest zadany offset
             if x_offset or y_offset:
-                image = self.shift_image(image, x_offset, y_offset)
+                image = self.shift_image(image,
+                                         x_offset=x_offset,
+                                         y_offset=y_offset,
+                                         rotation_angle=self.rotation_angle,
+                                         scale=1,
+                                         base_x=self.brakout_point.x_disp,
+                                         base_y=self.brakout_point.y_disp)
 
             self.montage_clip_image = image
 
@@ -1551,38 +1586,6 @@ class Clip:
             self.frames[frame_number].image_to_draw = self.image
 
             self.add_time_counter('obróbka ostatecznego obrazu')
-
-    def make_video_clip(self, draws_states, compare_clip, swich_id):
-
-        output_folder = "_clips"
-
-        output_video_clip_file = "{}\\{}".format(
-            output_folder, self.name.replace(".mp4", "_analized.mp4")
-        )
-
-        out = cv2.VideoWriter(
-            output_video_clip_file, cv2.VideoWriter_fourcc(*"mp4v"), 30, (1920, 1080)
-        )
-
-        for frame_number in range(1, self.frames_amount):
-
-            self.display_frame(frame_number, draws_states, compare_clip=compare_clip)
-
-            out.write(self.montage_clip_image)  # writing the video frame
-
-        import time
-        time.sleep(20)
-
-        file_from = f'{os.getcwd()}\\{output_video_clip_file}'
-        file_to = file_from.replace('.mp4','_60fps.mp4')
-
-        print(file_from)
-        print(file_to)
-        print(f"ffmpeg -y -i {file_from} -vf fps=60 {file_to}")
-
-        os.system(f"ffmpeg -y -i {file_from} -vf fps=60 {file_to}")
-
-        print(f"{self.name} gotowe.")
 
     def save_frame(self, frame_to_display):
 

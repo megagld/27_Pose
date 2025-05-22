@@ -132,39 +132,9 @@ class CanvasImage(tk.Canvas):
 
     def update_view(self, *_) -> None:
         # aktualizuje klatkę do wyświetlenia
+        manager.make_source_image()
 
-        try:
-            x_offset = manager.clip_a.brakout_point.x_disp - manager.clip_b.brakout_point.x_disp
-            y_offset = manager.clip_a.brakout_point.y_disp - manager.clip_b.brakout_point.y_disp
-            frame_number_shift = manager.clip_b.brakout_point_frame - manager.clip_a.brakout_point_frame
-        except:
-            x_offset, y_offset = 0, 0
-
-        if manager.draws_states_a.main_frame_draw_state == True and manager.draws_states_b.main_frame_draw_state == False:
-            manager.clip_a.display_frame(frame_number = manager.frame_to_display,
-                                         draws_states = manager.draws_states_a,
-                                         compare_clip = None,
-                                         swich_id = manager.swich_id)
-            self.source_image = manager.clip_a.image
-            print('a')
-
-        if manager.draws_states_a.main_frame_draw_state == False and manager.draws_states_b.main_frame_draw_state == True:
-            manager.clip_b.display_frame(frame_number = manager.frame_to_display + frame_number_shift,
-                                         draws_states = manager.draws_states_b,
-                                         compare_clip = None,
-                                         swich_id = manager.swich_id,
-                                         x_offset = x_offset,
-                                         y_offset = y_offset)
-            self.source_image = manager.clip_b.image
-            print('b')
-
-        if manager.draws_states_a.main_frame_draw_state == True and manager.draws_states_b.main_frame_draw_state == True:
-            manager.clip_a.display_frame(frame_number = manager.frame_to_display,
-                                         draws_states = manager.draws_states_a,
-                                         compare_clip = manager.clip_b,
-                                         swich_id = manager.swich_id)
-            self.source_image = manager.clip_a.image
-            print('ab')
+        self.source_image = manager.source_image
 
         self.open_image()
 
@@ -181,6 +151,7 @@ class Frame_right_top(tk.Frame):
         manager.count_b = tk.StringVar()
         manager.speed_factor = tk.IntVar()
         manager.obstacle_length = tk.IntVar()
+        manager.rotation_angle = tk.IntVar()
 
         # manager.date_a.set("Select date")
         # manager.time_a.set("Select time")
@@ -259,7 +230,7 @@ class Frame_right_top(tk.Frame):
                     ).grid(column=6, row=0, rowspan=3, sticky='ns')
         #################################
 
-        ttk.Button(self, text='make clip', comman=manager.make_clip
+        ttk.Button(self, text='make clip', comman=manager.make_video_clip
                    ).grid(row=0, column=7, padx=5, pady=5, sticky='EWNS')
         ttk.Button(self, text='save frame as jpg', comman=manager.save_frame
                    ).grid(row=1, column=7, padx=5, pady=5, sticky='EWNS')
@@ -311,6 +282,15 @@ class Frame_right_top(tk.Frame):
                   ).grid(row=1, column=17, padx=5, pady=5, sticky='EWNS')
         ttk.Separator(self, orient='vertical'
                     ).grid(column=18, row=0, rowspan=3, sticky='ns')
+        #################################
+                
+        ttk.Button(self, text='image rotation +1', command=lambda *args: manager.img_rotation_change(+1)
+                   ).grid(row=1, column=19, padx=5, pady=5, sticky='EWNS')
+        ttk.Button(self, text='image rotation -1', command=lambda *args: manager.img_rotation_change(-1)
+                   ).grid(row=2, column=19, padx=5, pady=5, sticky='EWNS')
+
+        ttk.Separator(self, orient='vertical'
+                    ).grid(column=20, row=0, rowspan=3, sticky='ns')
         #################################
         
         self.bind_all("<Return>", manager.update_values)
