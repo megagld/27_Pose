@@ -946,7 +946,7 @@ class Clip:
                                       scale=1,
                                       base_x=base_x,
                                       base_y=base_y)
-
+            
             self.add_transparent_image(image, compare_image)
 
         except:
@@ -1010,7 +1010,6 @@ class Clip:
         # obróć obraz i przeskaluj
         rotation_point = (base_x, base_y)
         rot_mat = cv2.getRotationMatrix2D(rotation_point, rotation_angle, scale)
-        print(rotation_angle)
         image = cv2.warpAffine(image, rot_mat, image.shape[1::-1], flags=cv2.INTER_LINEAR)
 
         return image
@@ -1507,7 +1506,8 @@ class Clip:
             self.add_time_counter('kopia image')
 
             # rysowanie klipu do porównania
-            if draws_states.compare_clip_draw_state:
+            # if draws_states.compare_clip_draw_state:
+            if compare_clip != None:
 
                 self.draw_clip_to_compare(image, frame_number, compare_clip)
 

@@ -1,8 +1,8 @@
 import tkinter as tk
 from tkinter import ttk
 import ttkbootstrap as tb
-from PIL import ImageTk
 from manager import *
+from PIL import ImageTk
 from uuid import uuid4
 
 class CanvasImage(tk.Canvas):
@@ -33,17 +33,19 @@ class CanvasImage(tk.Canvas):
 
     def _on_button_1(self,event):
 
-        # względna pozycja x myszy na obnrazie przeskalowanym
+        # względna pozycja x myszy na obrazie przeskalowanym
         relative_mouse_position = (event.x - (self.width-self.resized_image_width)/2)/self.resized_image_width
+
         # bezwzględna pozycja myszy na obrazie orginalnym
         absolut_mouse_position_x = relative_mouse_position * self.orginal_image_width
 
-        for frame_count, frame in manager.clip_a.frames.items():
+        # znajduje najbliższą klatkę do 
+        for frame_count, frame in manager.clip_a.clip.frames.items():
             if frame.detected and frame.trace_point.x > absolut_mouse_position_x:
                 manager.frame_to_display = frame_count
                 break
 
-        # manager.frame_to_display = 100
+        #ustala scale na najbliższą klatkę
         manager.scale.set(manager.frame_to_display)
 
     def _on_button_3(self,event):
@@ -51,7 +53,7 @@ class CanvasImage(tk.Canvas):
         manager.frame_cnt_change(1)
         
     def _on_button_2(self,event):
-
+        # ustala punkt wybicia
         # względna pozycja x myszy na obnrazie przeskalowanym
         relative_mouse_position_x = (event.x - (self.width-self.resized_image_width)/2)/self.resized_image_width
         relative_mouse_position_y = (event.y - (self.height-self.resized_image_height)/2)/self.resized_image_height
@@ -64,16 +66,14 @@ class CanvasImage(tk.Canvas):
             manager.swich_id = uuid4()
             manager.set_brakout_point(absolut_mouse_position_x, 
                                       absolut_mouse_position_y)
-            
 
-        # manager.frame_to_display = 100
         manager.scale.set(manager.frame_to_display)
 
     def _on_mousewheel(self, event):
 
-        if event.delta==-120:
+        if event.delta<0:
             manager.frame_cnt_change(-5)
-        elif event.delta==120:
+        elif event.delta>0:
             manager.frame_cnt_change(+5)
     
     def update_values(self, *_) -> None:
@@ -118,7 +118,7 @@ class CanvasImage(tk.Canvas):
 
     def open_image(self) -> None:
 
-        if not manager.clip_a.image:
+        if not manager.clip_a.clip.image:
             return
 
         self.delete_previous_image()
@@ -143,147 +143,101 @@ class Frame_right_top(tk.Frame):
     def __init__(self, master: tk.Tk, **kwargs):
         super().__init__(master, **kwargs)
 
-        manager.date_a = tk.StringVar()
-        manager.time_a = tk.StringVar()
-        manager.count_a = tk.StringVar()
-        manager.date_b = tk.StringVar()
-        manager.time_b = tk.StringVar()
-        manager.count_b = tk.StringVar()
-        manager.speed_factor = tk.IntVar()
-        manager.obstacle_length = tk.IntVar()
-        manager.rotation_angle = tk.IntVar()
-
-        manager.date_a.set("2025-02-09")
-        manager.time_a.set("13:25:12")
-        manager.count_a.set("003")
-
-        manager.date_b.set("2025-03-12")
-        manager.time_b.set("14:38:46")
-        manager.count_b.set("005")
-
-        # manager.compare.set("Select file to compare number")
-        manager.speed_factor.set(None)
-        manager.obstacle_length.set(None)
-
-        #################################
-        manager.combo_list_date_a = ttk.Combobox(self,
-                                        width=25,
-                                        textvariable=manager.date_a,
-                                        postcommand=manager.set_dates_list_a)
-        manager.combo_list_date_a.grid(row=0,column=0, padx=5,pady=5)
-
-        manager.combo_list_time_a = ttk.Combobox(self,
-                                        width=25,
-                                        textvariable=manager.time_a,
-                                        postcommand=manager.set_times_list_a)
-        manager.combo_list_time_a.grid(row=1,column=0, padx=5,pady=5)
-
-        manager.combo_list_count_a = ttk.Combobox(self,
-                                        width=25,
-                                        textvariable=manager.count_a,
-                                        postcommand=manager.set_counts_list_a)
-        manager.combo_list_count_a.grid(row=2,column=0, padx=5,pady=5)
-
-        manager.combo_list_date_b = ttk.Combobox(self,
-                                        width=25,
-                                        textvariable=manager.date_b,
-                                        postcommand=manager.set_dates_list_b)
-        manager.combo_list_date_b.grid(row=0,column=1, padx=5,pady=5)
-
-        manager.combo_list_time_b = ttk.Combobox(self,
-                                        width=25,
-                                        textvariable=manager.time_b,
-                                        postcommand=manager.set_times_list_b)
-        manager.combo_list_time_b.grid(row=1,column=1, padx=5,pady=5)
-
-        manager.combo_list_count_b = ttk.Combobox(self,
-                                        width=25,
-                                        textvariable=manager.count_b,
-                                        postcommand=manager.set_counts_list_b)
-        manager.combo_list_count_b.grid(row=2,column=1, padx=5,pady=5)
-
         #################################
 
-        ttk.Button(self, text='load file', comman=manager.load_file
-                   ).grid(row=2, column=2, padx=5, pady=5,  sticky='EWNS')
+        buttons_setup = [('load files',             manager.load_file,                          2, 2),
+                         ('reload classes',         manager.reload_classes,                     0, 5),
+                         ('count drawing times',    manager.count_drawing_times,                1, 5),
+                         ('make clip',              manager.make_video_clip,                    0, 7),
+                         ('save frame as jpg',      manager.save_frame,                         1, 7),
+                         ('frame count -',          lambda: manager.frame_cnt_change(-1),       1, 9),
+                         ('frame count +',          lambda: manager.frame_cnt_change(1),        1, 10),
+                         ('bike rotation +1',       lambda : manager.bike_rotation_change(1),   0, 12),
+                         ('bike rotation +5',       lambda : manager.bike_rotation_change(5),   1, 12),
+                         ('bike rotation +10',      lambda : manager.bike_rotation_change(10),  2, 12),
+                         ('set ang',                manager.set_ang,                            1, 13),
+                         ('bike rotation -1',       lambda : manager.bike_rotation_change(-1),  0, 14),
+                         ('bike rotation -5',       lambda : manager.bike_rotation_change(-5),  1, 14),
+                         ('bike rotation -10',      lambda : manager.bike_rotation_change(-10), 2, 14),
+                         ('image rotation +1',      lambda : manager.img_rotation_change(1),    1, 19),
+                         ('image rotation -1',      lambda : manager.img_rotation_change(-1),   2, 19)]
+
+        for text, command, row, column in buttons_setup:
+            ttk.Button(self,
+                       text=text,
+                       command=command
+                       ).grid(row=row,
+                              column=column,
+                              padx=5,
+                              pady=5,
+                              sticky='EWNS')
+
+        #################################
+        # do poprawy
+
+        comboboxes_setups = [(manager.clip_a, manager.clip_a.combo_list_date,   manager.clip_a.date,    manager.set_dates_list_a,   0, 0),
+                             (manager.clip_a, manager.clip_a.combo_list_time,   manager.clip_a.time,    manager.set_times_list_a,   1, 0),
+                             (manager.clip_a, manager.clip_a.combo_list_count,  manager.clip_a.count,   manager.set_counts_list_a,  2, 0),
+                             (manager.clip_b, manager.clip_a.combo_list_date,   manager.clip_b.date,    manager.set_dates_list_b,   0, 1),
+                             (manager.clip_b, manager.clip_a.combo_list_time,   manager.clip_b.time,    manager.set_times_list_b,   1, 1),
+                             (manager.clip_b, manager.clip_a.combo_list_count,  manager.clip_b.count,   manager.set_counts_list_b,  2, 1)]
         
-        ttk.Separator(self, orient='vertical'
-                    ).grid(column=3, row=0, rowspan=3, sticky='ns')
-        #################################
-        
-        ttk.Button(self, text='reload classes', comman=manager.reload_classes
-                   ).grid(row=0, column=5, padx=5, pady=5,  sticky='EWNS')
-
-        ttk.Button(self, text='count drawing times', comman=manager.count_drawing_times
-                   ).grid(row=1, column=5, padx=5, pady=5, sticky='EWNS')
-        
-        ttk.Separator(self, orient='vertical'
-                    ).grid(column=6, row=0, rowspan=3, sticky='ns')
-        #################################
-
-        ttk.Button(self, text='make clip', comman=manager.make_video_clip
-                   ).grid(row=0, column=7, padx=5, pady=5, sticky='EWNS')
-        ttk.Button(self, text='save frame as jpg', comman=manager.save_frame
-                   ).grid(row=1, column=7, padx=5, pady=5, sticky='EWNS')
-        
-        ttk.Separator(self, orient='vertical'
-                     ).grid(column=8, row=0, rowspan=3, sticky='ns')
-        #################################
-        
-        ttk.Button(self, text='frame count -', command=lambda *args: manager.frame_cnt_change(-1)
-                   ).grid(row=1, column=9, padx=5, pady=5, sticky='EWNS')
-        ttk.Button(self, text='frame count +', command=lambda *args: manager.frame_cnt_change(+1)
-                   ).grid(row=1, column=10, padx=5, pady=5, sticky='EWNS')
-
-        ttk.Separator(self, orient='vertical'
-                    ).grid(column=11, row=0, rowspan=3, sticky='ns')
-        #################################
-        
-        ttk.Button(self, text='bike rotation +1', command=lambda *args: manager.bike_rotation_change(1)
-                   ).grid(row=0, column=12, padx=5, pady=5, sticky='EWNS')
-        ttk.Button(self, text='bike rotation +5', command=lambda *args: manager.bike_rotation_change(5)
-                   ).grid(row=1, column=12, padx=5, pady=5, sticky='EWNS')
-        ttk.Button(self, text='bike rotation +10', command=lambda *args: manager.bike_rotation_change(10)
-                   ).grid(row=2, column=12, padx=5, pady=5, sticky='EWNS')
-        ttk.Button(self, text='set ang', comman=manager.set_ang
-                   ).grid( row=1, column=13, padx=5, pady=5, sticky='EWNS')
-        ttk.Button(self, text='bike rotation -1', command=lambda *args: manager.bike_rotation_change(-1)
-                   ).grid(row=0, column=14, padx=5, pady=5, sticky='EWNS')
-        ttk.Button(self, text='bike rotation -5', command=lambda *args: manager.bike_rotation_change(-5)
-                   ).grid(row=1, column=14, padx=5, pady=5, sticky='EWNS')
-        ttk.Button(self, text='bike rotation -10', command=lambda *args: manager.bike_rotation_change(-10)
-                   ).grid(row=2, column=14, padx=5, pady=5, sticky='EWNS')
-
-        ttk.Separator(self, orient='vertical'
-                    ).grid(column=15, row=0, rowspan=3, sticky='ns')
-        #################################
-
-        ttk.Label(self,
-                  text='speed factor :',
-                  ).grid(row=0, column=16, padx=5, pady=5, sticky='ENS')
-        ttk.Label(self,
-            text='obstacle length :',
-            ).grid(row=1, column=16, padx=5, pady=5, sticky='ENS')
-
-        ttk.Entry(self,
-                  textvariable=manager.speed_factor,
-                  ).grid(row=0, column=17, padx=5, pady=5, sticky='EWNS')
-        ttk.Entry(self,
-                  textvariable=manager.obstacle_length,
-                  ).grid(row=1, column=17, padx=5, pady=5, sticky='EWNS')
-        ttk.Separator(self, orient='vertical'
-                    ).grid(column=18, row=0, rowspan=3, sticky='ns')
+        for  clip, combobox,  textvariable, postcommand, row, column  in comboboxes_setups:
+            tmp = ttk.Combobox(self,
+                                    width=15,
+                                    textvariable=textvariable,
+                                    postcommand=postcommand)
+            tmp.grid(row=row, 
+                     column=column, 
+                     padx=5, 
+                     pady=5)
+            
+            setattr(clip, 
+                    combobox,
+                    tmp)
+            
         #################################
                 
-        ttk.Button(self, text='image rotation +1', command=lambda *args: manager.img_rotation_change(+1)
-                   ).grid(row=1, column=19, padx=5, pady=5, sticky='EWNS')
-        ttk.Button(self, text='image rotation -1', command=lambda *args: manager.img_rotation_change(-1)
-                   ).grid(row=2, column=19, padx=5, pady=5, sticky='EWNS')
-
-        ttk.Separator(self, orient='vertical'
-                    ).grid(column=20, row=0, rowspan=3, sticky='ns')
-        #################################
+        labels_setup = [('speed factor :',      0, 16),
+                        ('obstacle length :',   1, 16)]
         
+        for text, row, column in labels_setup:
+            ttk.Label(self,
+                      text=text,
+                      ).grid(row=row,
+                             column=column,
+                             padx=5,
+                             pady=5,
+                             sticky='ENS')
+            
+        #################################
+
+        entrys_setup = [(manager.speed_factor,      0, 17),
+                        (manager.obstacle_length,   1, 17)]
+
+        for textvariable, row, column in entrys_setup:
+            ttk.Entry(self,
+                    textvariable=textvariable
+                    ).grid(row=row, 
+                           column=column, 
+                           padx=5, 
+                           pady=5, 
+                           sticky='EWNS')
+            
+        #################################
+
+        separators = [3, 6, 8, 11, 15, 18, 20]
+
+        for separator_column in separators:
+            ttk.Separator(self, 
+                          orient='vertical'
+                          ).grid(row=0,
+                                 column=separator_column,
+                                 rowspan=3,
+                                 sticky='ns')
+
+        #################################
+
         self.bind_all("<Return>", manager.update_values)
 
 
@@ -331,20 +285,7 @@ class Frame_left(tk.Frame):
 
         # rysowanie checkboxów z opisami. Checkboxy powstają na podstawie
         # labeli i są zestawiane na podstawie ich tekstu. Key = tekst labela
-        
-        ttk.Label(self,
-                text='A',
-                anchor="center"
-                ).grid(column=0,
-                        row=0,
-                        padx=(5,0))
-        ttk.Label(self,
-                text='B',
-                ).grid(column=1,
-                        row=0,
-                        padx=(5,0),
-                        sticky = 'NW')
-        
+
         for row_count, label in enumerate(self.labels, start=1):
             # dostosowuje nazwę do wyświetlenia - todo: dodać polskie tłumaczenia np.jako słownik
             text_to_display = label.replace(
@@ -406,28 +347,26 @@ class Window(tk.Tk):
         super().__init__(**kwargs)
 
         # ustala styl widgetów
-
         style = tb.Style('minty')
-
-        # tworzy okno i podokna
-
+            
+        # ustala wymiary początkowe okna
         self.minsize(800, 600)
 
-        self.frame_left = Frame_left(self).pack(
-            side='left',
-            fill='both',
-            expand=False)
+        # inicjuje obiety tkintera w managerze
+        manager.init_tk_objects()
 
-        self.frame_right_top = Frame_right_top(self).pack(
-            fill='both')
+        # tworzy główne podokna
+        self.frame_left = Frame_left(self)
+        self.frame_right_top = Frame_right_top(self)
+        self.frame_right_bottom = Frame_right_bottom(self)
 
-        self.frame_right_bottom = Frame_right_bottom(self).pack(
-            fill='both',
-            expand=True)
+        # umieszcza podokna w oknie głównym
+        self.frame_left.pack(side='left', fill='both', expand=False)
+        self.frame_right_top.pack(fill='both')
+        self.frame_right_bottom.pack(fill='both', expand=True)
 
 
 if __name__ == '__main__':
-
     # tworzy obiekt zarządzajacy całością
     manager = Manager()
 

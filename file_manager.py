@@ -110,11 +110,14 @@ class VideoFiles:
     def get_times(self, date):
         self.dropdown_list_times = sorted(time for time in self.dropdown_lists_data[date] if date)
 
-    def get_counts(self, date, time):
-        self.dropdown_list_counts = sorted(count for count in self.dropdown_lists_data[date][time] if date)
+    def get_counts_a(self, date, time):
+        self.dropdown_list_counts_a = sorted(count for count in self.dropdown_lists_data[date][time] if date)
 
-    def make_handy_files_dict(self, date, time):
-        return {count:self.dropdown_lists_data[date][time][count] for count in self.dropdown_list_counts}
+    def get_counts_b(self, date, time):
+        self.dropdown_list_counts_b = sorted(count for count in self.dropdown_lists_data[date][time] if date)
+
+    def make_handy_files_dict(self, date, time, dropdown_list_counts):
+        return {count:self.dropdown_lists_data[date][time][count] for count in dropdown_list_counts}
 
     def get_others(self):
         return sorted(file.name for file in self.dropdown_lists_data if not file.date)

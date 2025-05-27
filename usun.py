@@ -1,12 +1,9 @@
-# Python3 program to find Closest number in a list
-import numpy as np
-def closest(lst, K):
-    
-     lst = np.asarray(lst)
-     idx = (np.abs(lst - K)).argmin()
-     return lst[idx]
-    
-# Driver code
-lst = [3.64, 5.2, 9.42, 9.35, 8.5, 8]
-K = 9.1
-print(closest(lst, K))
+def createGameURLs(self):
+    self.button = []
+    for i in range(3):
+        self.button.append(Button(self, text='Game '+str(i+1),
+                                  command=lambda: self.open_this(i)))
+        self.button[i].grid(column=4, row=i+1, sticky=W)
+
+def open_this(self, myNum):
+    print(myNum)

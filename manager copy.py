@@ -5,7 +5,6 @@ from uuid import uuid4
 import file_manager
 import cv2
 import tkinter as tk
-from tkinter import ttk
 
 
 class Manager:
@@ -87,10 +86,10 @@ class Manager:
         self.frame_to_display += amount
         self.frame_to_display = min(
             self.frame_to_display, 
-            self.clip_a.clip.scale_range_max)
+            self.clip_a.scale_range_max)
         self.frame_to_display = max(
             self.frame_to_display, 
-            self.clip_a.clip.scale_range_min)
+            self.clip_a.scale_range_min)
         self.scale.set(self.frame_to_display)
 
     def count_drawing_times(self):
@@ -100,54 +99,63 @@ class Manager:
 
     def load_file(self):
 
-        for clip in (self.clip_a, self.clip_b):
+        if self.clip_a.time.get() in ("Select file number",'-'):
+            return  
 
-            if clip.date.get() in ("Select file number",'-'):
-                break  
+        if self.clip_a.date.get() == 'unclassified':            
+            video_file = self.avilable_files.dropdown_lists_data['unclassified'][self.clip_a.time.get()]
+        
+        else:
+            video_file = self.handy_files_dict_a[self.clip_a.count.get()]
 
-            elif clip.date.get() == 'unclassified':            
-                video_file = self.avilable_files.dropdown_lists_data['unclassified'][clip.time.get()]
-            else:
-                if not clip.handy_files_dict:
-                    self.set_counts_list_a()
-                    self.set_counts_list_b()
-                video_file = clip.handy_files_dict[clip.count.get()]
+        self.filename = video_file.name
 
+        self.load_path = video_file.file_path
+        
+        self.clip_a.clip=classes.Clip(self.filename, self.load_path)
 
-            self.filename = video_file.name
-
-            self.load_path = video_file.file_path
-            
-            clip.clip=classes.Clip(self.filename, self.load_path)
-
-
-
-        # do zmiany
-        self.speed_factor.set(self.clip_a.clip.speed_factor)
-        self.obstacle_length.set(self.clip_a.clip.obstacle_length)
+        self.speed_factor.set(self.clip_a.speed_factor)
+        self.obstacle_length.set(self.clip_a.obstacle_length)
 
         self.calc_scale_range()
-        self.scale.set(self.clip_a.clip.scale_range_min)
+        self.scale.set(self.clip_a.scale_range_min)
 
-        self.clip_b.clip.compare_clip = True
+        try:
+
+            if self.date_b.get() == 'unclassified':            
+                video_file = self.avilable_files.dropdown_lists_data['unclassified'][self.time_b.get()]
+
+            else:
+                video_file = self.handy_files_dict_b[self.count_b.get()]
+
+            self.video_file_b_filename = video_file.name
+
+            self.video_file_b_load_path = video_file.file_path
+
+            self.clip_b = classes.Clip(self.video_file_b_filename, self.video_file_b_load_path)
+            
+            self.clip_b.compare_clip = True
+            
+        except:
+            pass
 
     def calc_scale_range(self):
 
-        self.scale_from = self.clip_a.clip.scale_range_min
-        self.scale_to = self.clip_a.clip.scale_range_max
+        self.scale_from = self.clip_a.scale_range_min
+        self.scale_to = self.clip_a.scale_range_max
 
         self.scale.config(from_=self.scale_from)
         self.scale.config(to=self.scale_to)
 
     def bike_rotation_change(self, amount):
         self.swich_id = uuid4()
-        self.clip_a.clip.frames[self.frame_to_display].bike_rotation += amount
+        self.clip_a.frames[self.frame_to_display].bike_rotation += amount
         self.canvas.update_view()
         self.scale.set(self.frame_to_display)  # po co to? do kontroli
 
     def img_rotation_change(self, amount):
         self.swich_id = uuid4()
-        self.clip_b.clip.rotation_angle += amount
+        self.clip_b.rotation_angle += amount
         self.canvas.update_view()
         self.scale.set(self.frame_to_display)  # po co to? do kontroli
 
@@ -155,73 +163,72 @@ class Manager:
         self.clip_a.bike_ang_cor.append((self.frame_to_display,
                                           self.clip_a.frames[self.frame_to_display].bike_rotation))
 
+    # def make_clip(self):
+    #     self.clip_a.make_video_clip(self.draws_states_a, self.draws_states_a, self.swich_id)
+
     def save_frame(self):
         self.clip_a.save_frame(self.frame_to_display)
 
     def set_dates_list_a(self):
 
-        self.clip_a.combo_list_date['values'] = self.avilable_files.dropdown_list_dates
+        self.combo_list_date_a['values'] = self.avilable_files.dropdown_list_dates
 
-        self.clip_a.combo_list_count['values'] = []
+        self.combo_list_count_a['values'] = []
 
-        self.clip_a.time.set("Select time")
-        self.clip_a.count.set("Select file number")
+        self.time_a.set("Select time")
+        self.count_a.set("Select file number")
 
     def set_times_list_a(self):
 
         try:
-            self.avilable_files.get_times(self.clip_a.date.get())
-            self.clip_a.combo_list_time['values'] = self.avilable_files.dropdown_list_times
-            self.clip_a.count.set("Select file number")
+            self.avilable_files.get_times(self.date_a.get())
+            self.combo_list_time_a['values'] = self.avilable_files.dropdown_list_times
+            self.count_a.set("Select file number")
         except:
             print('błąd przy pobieraniu czasów')
 
     def set_counts_list_a(self):
         try:
-            self.avilable_files.get_counts_a(self.clip_a.date.get(), self.clip_a.time.get())
-            self.clip_a.combo_list_count['values'] = self.avilable_files.dropdown_list_counts_a
-
-            self.clip_a.handy_files_dict = self.avilable_files.make_handy_files_dict(self.clip_a.date.get(), 
-                                                                                     self.clip_a.time.get(),
-                                                                                     self.avilable_files.dropdown_list_counts_a)
-            pass
+            self.avilable_files.get_counts(self.date_a.get(), self.time_a.get())
+            self.combo_list_count_a['values'] = self.avilable_files.dropdown_list_counts
+            self.handy_files_dict_a = self.avilable_files.make_handy_files_dict(self.date_a.get(), 
+                                                                                self.time_a.get())
         except:
-            print('błąd przy pobieraniu liczników a')
+            print('błąd przy pobieraniu liczników')
 
     def set_dates_list_b(self):
 
-        self.clip_b.combo_list_date['values'] = self.avilable_files.dropdown_list_dates
+        self.combo_list_date_b['values'] = self.avilable_files.dropdown_list_dates
 
-        self.clip_b.combo_list_count['values'] = []
+        self.combo_list_count_b['values'] = []
 
-        self.clip_b.time.set("Select time")
-        self.clip_b.count.set("Select file number")
+        self.time_b.set("Select time")
+        self.count_b.set("Select file number")
 
     def set_times_list_b(self):
 
         try:
-            self.avilable_files.get_times(self.clip_b.date.get())
-            self.clip_b.combo_list_time['values'] = self.avilable_files.dropdown_list_times
-            self.clip_b.count.set("Select file number")
+            self.avilable_files.get_times(self.date_b.get())
+            self.combo_list_time_b['values'] = self.avilable_files.dropdown_list_times
+            self.count_b.set("Select file number")
         except:
             print('błąd przy pobieraniu czasów')
 
     def set_counts_list_b(self):
 
         try:
-            self.avilable_files.get_counts_b(self.clip_b.date.get(), self.clip_b.time.get())
-            self.clip_b.combo_list_count['values'] = self.avilable_files.dropdown_list_counts_b            
-            self.clip_b.handy_files_dict = self.avilable_files.make_handy_files_dict(self.clip_b.date.get(), 
-                                                                                    self.clip_b.time.get(),
-                                                                                    self.avilable_files.dropdown_list_counts_b)  
+            self.avilable_files.get_counts(self.date_b.get(), self.time_b.get())
+            self.combo_list_count_b['values'] = self.avilable_files.dropdown_list_counts
+            self.handy_files_dict_b = self.avilable_files.make_handy_files_dict(self.date_b.get(), 
+                                                                    self.time_b.get())
 
         except:
-            print('błąd przy pobieraniu liczników b')
+            print('błąd przy pobieraniu liczników')
 
     def set_compare_counts_list(self):
 
         try:
-            self.avilable_files.get_counts_b(self.date_a.get(), self.time_a.get())
+            self.avilable_files.get_counts(self.date_a.get(), self.time_a.get())
             self.combo_list_compare_count['values'] = self.avilable_files.dropdown_list_counts
         except:
             print('błąd przy pobieraniu liczników pliku do porównania')
@@ -245,54 +252,52 @@ class Manager:
 
     def update_values(self, event):
 
-        self.clip_a.clip.speed_factor = self.speed_factor.get()
-        self.clip_a.clip.obstacle_length = self.obstacle_length.get()
-        self.clip_a.clip.charts['speed_chart'].speed_factor = self.clip_a.clip.speed_factor
-        self.clip_a.clip.charts['speed_chart'].calc_min_max()
-        self.clip_a.clip.calc_max_jump_height()
+        self.clip_a.speed_factor = self.speed_factor.get()
+        self.clip_a.obstacle_length = self.obstacle_length.get()
+        self.clip_a.charts['speed_chart'].speed_factor = self.clip_a.speed_factor
+        self.clip_a.charts['speed_chart'].calc_min_max()
+        self.clip_a.calc_max_jump_height()
         self.swich_id = uuid4()
         self.scale.set(self.frame_to_display)
 
     def make_source_image(self):
 
         try:
-            x_offset = self.clip_a.clip.brakout_point.x_disp - self.clip_b.clip.brakout_point.x_disp
-            y_offset = self.clip_a.clip.brakout_point.y_disp - self.clip_b.clip.brakout_point.y_disp
-            frame_number_shift = self.clip_b.clip.brakout_point_frame - self.clip_a.clip.brakout_point_frame
+            x_offset = self.clip_a.brakout_point.x_disp - self.clip_b.brakout_point.x_disp
+            y_offset = self.clip_a.brakout_point.y_disp - self.clip_b.brakout_point.y_disp
+            frame_number_shift = self.clip_b.brakout_point_frame - self.clip_a.brakout_point_frame
         except:
             x_offset, y_offset = 0, 0
 
         if self.draws_states_a.main_frame_draw_state == True and self.draws_states_b.main_frame_draw_state == False:
-            self.clip_a.clip.display_frame(frame_number = self.frame_to_display,
+            self.clip_a.display_frame(frame_number = self.frame_to_display,
                                          draws_states = self.draws_states_a,
                                          compare_clip = None,
                                          swich_id = self.swich_id)
-            self.source_image = self.clip_a.clip.image
-            self.montage_clip_image = self.clip_a.clip.montage_clip_image
+            self.source_image = self.clip_a.image
+            self.montage_clip_image = self.clip_a.montage_clip_image
             print('a')
 
         if self.draws_states_a.main_frame_draw_state == False and self.draws_states_b.main_frame_draw_state == True:
-            self.clip_b.clip.display_frame(frame_number = self.frame_to_display + frame_number_shift,
+            self.clip_b.display_frame(frame_number = self.frame_to_display + frame_number_shift,
                                          draws_states = self.draws_states_b,
                                          compare_clip = None,
                                          swich_id = self.swich_id,
                                          x_offset = x_offset,
                                          y_offset = y_offset)
-            self.source_image = self.clip_b.clip.image
-            self.montage_clip_image = self.clip_b.clip.montage_clip_image
+            self.source_image = self.clip_b.image
+            self.montage_clip_image = self.clip_b.montage_clip_image
 
             print('b')
-            print(self.clip_b.rotation_angle)
 
         if self.draws_states_a.main_frame_draw_state == True and self.draws_states_b.main_frame_draw_state == True:
-            self.clip_a.clip.display_frame(frame_number = self.frame_to_display,
+            self.clip_a.display_frame(frame_number = self.frame_to_display,
                                          draws_states = self.draws_states_a,
-                                         compare_clip = self.clip_b.clip,
+                                         compare_clip = self.clip_b,
                                          swich_id = self.swich_id)
-            self.source_image = self.clip_a.clip.image
-            self.montage_clip_image = self.clip_a.clip.montage_clip_image
+            self.source_image = self.clip_a.image
+            self.montage_clip_image = self.clip_a.montage_clip_image
 
-            print(self.clip_b.clip.rotation_angle)
             print('ab')
 
     def make_video_clip(self):
@@ -329,6 +334,7 @@ class Manager:
 
         print(f"{self.clip_a.name} gotowe.")   
         self.frame_to_display = 0
+
 
 
 class LeftFrameWidgets:
@@ -373,7 +379,9 @@ class LeftFrameWidgets:
                             'side_skeleton_left_draw_state',
                             '',
                             'side_wheel_base_line_draw_state',
-                            'side_head_leading_line_draw_state'
+                            'side_head_leading_line_draw_state',
+                            '',
+                            'compare_clip_draw_state'
                             ]
 
 
@@ -437,17 +445,18 @@ class DrawsStates:
         # pionowa linia wiodąca - głowa
         self.side_head_leading_line_draw_state          = True
 
+        # klip do porównania
+
+        self.compare_clip_draw_state                    = False
+
 
 class ClipTkinterData:
     def __init__(self):
 
         # listy rozwijane
-        self.combo_list_date = 'combo_list_date'
-        self.combo_list_time = 'combo_list_time'
-        self.combo_list_count = 'combo_list_count'
-
-        # podręczna lista plików do załadowania wg danych z list rozwijanych
-        self.handy_files_dict = {}
+        self.combo_list_date = None
+        self.combo_list_time = None
+        self.combo_list_count = None
 
         # dane do tworzenia nazwy pliku do załadownia
         self.date = None
@@ -465,17 +474,19 @@ class ClipTkinterData:
 
         self.frame_to_display = None
 
-        self.rotation_angle = 0
+        self.rotation_angle = None
 
     def init_tk_objects(self):
         self.date = tk.StringVar()
         self.time = tk.StringVar()
         self.count = tk.StringVar()
 
-        # self.combo_list_date = ttk.Combobox()
-        # self.combo_list_time = ttk.Combobox()
-        # self.combo_list_count = ttk.Combobox()
-
         # self.date.set("Select date")
         # self.time.set("Select time")
         # self.count.set("Select file number")
+
+        self.rotation_angle = tk.IntVar()
+
+
+        
+
