@@ -683,7 +683,7 @@ class Clip:
         # dane do wykresów i linii
         self.avilable_charts = {
             "speed_chart": {
-                "chart_description": "prędkość [km/h]",
+                "chart_description": "speed [km/h]",
                 "range_min": 15,
                 "range_max": 45,
                 "reverse": False,
@@ -691,7 +691,7 @@ class Clip:
                 "smoothed":True
             },
             "right_knee_ang_chart": {
-                "chart_description": "prawe kolano [st.]",
+                "chart_description": "right knee ang. [st.]",
                 "range_min": 90,
                 "range_max": 180,
                 "reverse": False,
@@ -699,7 +699,7 @@ class Clip:
                 "smoothed":False
             },
             "left_knee_ang_chart": {
-                "chart_description": "lewe kolano [st.]",
+                "chart_description": "left knee ang. [st.]",
                 "range_min": 90,
                 "range_max": 180,
                 "reverse": False,
@@ -707,7 +707,7 @@ class Clip:
                 "smoothed":False
             },
             "right_hip_ang_chart": {
-                "chart_description": "prawe biodro [st.]",
+                "chart_description": "right hip ang. [st.]",
                 "range_min": 90,
                 "range_max": 180,
                 "reverse": False,
@@ -715,7 +715,7 @@ class Clip:
                 "smoothed":False
             },
             "left_hip_ang_chart": {
-                "chart_description": "lewe biodro [st.]",
+                "chart_description": "left hip ang. [st.]",
                 "range_min": 90,
                 "range_max": 180,
                 "reverse": False,
@@ -723,7 +723,7 @@ class Clip:
                 "smoothed":False
             },
             "right_elbow_ang_chart": {
-                "chart_description": "prawy łokieć [st.]",
+                "chart_description": "right elbow ang. [st.]",
                 "range_min": 90,
                 "range_max": 180,
                 "reverse": False,
@@ -731,7 +731,7 @@ class Clip:
                 "smoothed":False
             },
             "left_elbow_ang_chart": {
-                "chart_description": "lewy łokieć [st.]",
+                "chart_description": "left elbow ang. [st.]",
                 "range_min": 90,
                 "range_max": 180,
                 "reverse": False,
@@ -739,7 +739,7 @@ class Clip:
                 "smoothed":False
             },
             "stack_reach_len_chart": {
-                "chart_description": "odległość stack/reach [m]",
+                "chart_description": "stack/reach dist. [m]",
                 "range_min": 50,
                 "range_max": 120,
                 "reverse": False,
@@ -747,7 +747,7 @@ class Clip:
                 "smoothed":False
             },
             "stack_reach_ang_chart": {
-                "chart_description": "kąt stack/reach [st.]",
+                "chart_description": "stack/reach ang. [st.]",
                 "range_min": 0,
                 "range_max": 90,
                 "reverse": False,

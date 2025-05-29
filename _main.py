@@ -24,7 +24,7 @@ class CanvasImage(tk.Canvas):
 
         self.bind('<Configure>', self.update_values)
 
-        manager.checkboxes_changed.trace_add("write", self.update_view)
+        manager.checkboxes_changed.trace_add("write", manager.update_view)
         
         self.bind("<Button-1>", self._on_button_1)
         self.bind("<MouseWheel>", self._on_mousewheel)
@@ -123,21 +123,10 @@ class CanvasImage(tk.Canvas):
 
         self.delete_previous_image()
 
-        # self.source_image = manager.clip_a.image
-
         self.image = ImageTk.PhotoImage(self.source_image)
 
         self.resize_image()
         self.paste_image()
-
-    def update_view(self, *_) -> None:
-        # aktualizuje klatkę do wyświetlenia
-        manager.make_source_image()
-
-        self.source_image = manager.source_image
-
-        self.open_image()
-
 
 class Frame_right_top(tk.Frame):
     def __init__(self, master: tk.Tk, **kwargs):

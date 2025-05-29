@@ -142,13 +142,13 @@ class Manager:
     def bike_rotation_change(self, amount):
         self.swich_id = uuid4()
         self.clip_a.clip.frames[self.frame_to_display].bike_rotation += amount
-        self.canvas.update_view()
+        self.update_view()
         self.scale.set(self.frame_to_display)  # po co to? do kontroli
 
     def img_rotation_change(self, amount):
         self.swich_id = uuid4()
         self.clip_b.clip.rotation_angle += amount
-        self.canvas.update_view()
+        self.update_view()
         self.scale.set(self.frame_to_display)  # po co to? do kontroli
 
     def set_ang(self):
@@ -231,10 +231,19 @@ class Manager:
         importlib.reload(classes)
         self.load_file()
 
-    def update_view(self, x) -> None:
+    def update_view(self, *_) -> None:
 
-        self.frame_to_display = int(float(x))
-        self.canvas.update_view()
+        # jeśli pierwszy przekazany argument jest liczbą - to przyjmuje że to numer klatki
+        try:
+            self.frame_to_display = int(float(_[0]))
+        except:
+            pass
+
+        self.make_source_image()
+
+        self.canvas.source_image = self.source_image
+
+        self.canvas.open_image()
 
     def set_brakout_point(self, x, y):
 
@@ -269,7 +278,7 @@ class Manager:
                                          swich_id = self.swich_id)
             self.source_image = self.clip_a.clip.image
             self.montage_clip_image = self.clip_a.clip.montage_clip_image
-            print('a')
+
 
         if self.draws_states_a.main_frame_draw_state == False and self.draws_states_b.main_frame_draw_state == True:
             self.clip_b.clip.display_frame(frame_number = self.frame_to_display + frame_number_shift,
@@ -281,9 +290,6 @@ class Manager:
             self.source_image = self.clip_b.clip.image
             self.montage_clip_image = self.clip_b.clip.montage_clip_image
 
-            print('b')
-            print(self.clip_b.rotation_angle)
-
         if self.draws_states_a.main_frame_draw_state == True and self.draws_states_b.main_frame_draw_state == True:
             self.clip_a.clip.display_frame(frame_number = self.frame_to_display,
                                          draws_states = self.draws_states_a,
@@ -292,8 +298,6 @@ class Manager:
             self.source_image = self.clip_a.clip.image
             self.montage_clip_image = self.clip_a.clip.montage_clip_image
 
-            print(self.clip_b.clip.rotation_angle)
-            print('ab')
 
     def make_video_clip(self):
 
