@@ -56,12 +56,12 @@ def run(poseweights="yolov7-w6-pose.pt",source="test.mp4",device='cpu',view_img=
 
                 print(f'no_pose_frames = {no_pose_frames}, bike_detected = {bike_detected}')
 
-                if detect_all==False and frame_count < start_det_frame:
+                if frame_count < start_det_frame:
                     print("Frame {} without bike (opening)".format(frame_count))
 
                     kpts_to_store[frame_time] = []
 
-                elif detect_all==False and no_pose_frames >= no_pose_limit: 
+                elif no_pose_frames >= no_pose_limit: 
                     print("Frame {} without bike (ending)".format(frame_count))
 
                     kpts_to_store[frame_time] = []
@@ -135,7 +135,7 @@ def parse_opt():
     parser.add_argument('--hide-labels', default=False, action='store_true', help='hide labels') #box hidelabel
     parser.add_argument('--hide-conf', default=False, action='store_true', help='hide confidences') #boxhideconf
     parser.add_argument('--output_folder', type=str, default="test.mp4",) #video output folder
-    parser.add_argument('--detect_all', default=False, action='store_true', help='detect in all frames' ) #video output folder
+    parser.add_argument('--detect_all', default=False, action='store_true', ) #video output folder
     opt = parser.parse_args()
     return opt
    

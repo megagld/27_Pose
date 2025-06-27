@@ -156,7 +156,7 @@ class Manager:
                                           self.clip_a.frames[self.frame_to_display].bike_rotation))
 
     def save_frame(self):
-        self.clip_a.clip.save_frame(self.frame_to_display)
+        self.clip_a.save_frame(self.frame_to_display)
 
     def set_dates_list_a(self):
 
@@ -247,10 +247,10 @@ class Manager:
 
     def set_brakout_point(self, x, y):
 
-        self.clip_a.clip.brakout_point = classes.Point(x, y)
-        self.clip_a.clip.calc_max_jump_height()
+        self.clip_a.brakout_point = classes.Point(x, y)
+        self.clip_a.calc_max_jump_height()
         self.update_view(self.frame_to_display)
-        self.clip_a.clip.save_brakout_point()
+        self.clip_a.save_brakout_point()
 
     def update_values(self, event):
 
@@ -304,40 +304,34 @@ class Manager:
         output_folder = "_clips"
 
         output_video_clip_file = "{}\\{}".format(
-            output_folder, self.clip_a.clip.name.replace(".mp4", "_analized.mp4")
+            output_folder, self.clip_a.name.replace(".mp4", "_analized.mp4")
         )
 
         out = cv2.VideoWriter(
             output_video_clip_file, cv2.VideoWriter_fourcc(*"mp4v"), 30, (1920, 1080)
         )
 
-        start_frame = max(self.scale_from-5, 0)
-        # do zmiany żeby uwzględniało clip_b 
-        end_frame = min(self.scale_to+6, self.clip_a.clip.frames_amount)
-
-
-        for frame_number in range(start_frame, end_frame):
+        for frame_number in range(self.scale_from-5, self.scale_to+6):
 
             self.frame_to_display = frame_number
 
             self.make_source_image()
-            # self.save_frame()
 
             out.write(self.montage_clip_image)  # writing the video frame
 
         import time
         time.sleep(20)
 
-        # file_from = f'{os.getcwd()}\\{output_video_clip_file}'
-        # file_to = file_from.replace('.mp4','_60fps.mp4')
+        file_from = f'{os.getcwd()}\\{output_video_clip_file}'
+        file_to = file_from.replace('.mp4','_60fps.mp4')
 
-        # print(file_from)
-        # print(file_to)
-        # print(f"ffmpeg -y -i {file_from} -vf fps=60 {file_to}")
+        print(file_from)
+        print(file_to)
+        print(f"ffmpeg -y -i {file_from} -vf fps=60 {file_to}")
 
-        # os.system(f"ffmpeg -y -i {file_from} -vf fps=60 {file_to}")
+        os.system(f"ffmpeg -y -i {file_from} -vf fps=60 {file_to}")
 
-        print(f"{self.clip_a.clip.name} gotowe.")   
+        print(f"{self.clip_a.name} gotowe.")   
         self.frame_to_display = 0
 
 

@@ -103,7 +103,6 @@ class Frame:
 
         self.image              = None
         self.image_to_draw      = None
-        self.montage_clip_image = None
         self.swich_id           = None
 
         self.frame_count        = frame_count
@@ -1486,15 +1485,12 @@ class Clip:
         # jeżeli nie było zmiany swich_id to obraz zostaje pobrany z obiektu Frame,
         # jeżeli była zmiana - obraz jest tworzony, a potem zapisany do obiektu Frame
 
-        # print(f'{frame_number} - {swich_id}/ {self.frames[frame_number].swich_id}')
-
         self.draws_times = []
 
         if  swich_id == self.frames[frame_number].swich_id:
 
             self.add_time_counter('start - to samo id')
 
-            self.montage_clip_image = self.frames[frame_number].montage_clip_image
             self.image = self.frames[frame_number].image_to_draw
 
             self.add_time_counter('koniec - to samo id')
@@ -1587,9 +1583,7 @@ class Clip:
 
             self.image = Image.fromarray(self.cv2_image)
 
-            self.frames[frame_number].montage_clip_image = self.montage_clip_image
             self.frames[frame_number].image_to_draw = self.image
-
 
             self.add_time_counter('obróbka ostatecznego obrazu')
 
